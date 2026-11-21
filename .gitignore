@@ -1,0 +1,32 @@
+# .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+artifacts/
+
+# Angular / Node
+node_modules/
+dist/
+.angular/
+coverage/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.pfx
+*.p12
+
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
