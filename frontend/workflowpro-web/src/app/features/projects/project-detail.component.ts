@@ -39,6 +39,7 @@ import { AuthService } from '../../core/auth/auth.service';
           </div>
 
           <div class="header-actions">
+            <a [routerLink]="['/projects', p.id, 'tasks']" class="btn-secondary">View Tasks</a>
             @if (canEdit()) {
               <button class="btn-secondary" (click)="openEditModal()">Edit Project</button>
             }

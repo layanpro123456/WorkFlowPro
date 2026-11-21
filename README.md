@@ -4,12 +4,13 @@
 
 WorkFlowPro is a portfolio project intended to demonstrate practical full-stack enterprise application engineering with ASP.NET Core 10, Angular, PostgreSQL, automated testing and containerized deployment.
 
-> **Project status:** Phase 2 (Projects and Membership) completed and verified.
+> **Project status:** Phase 3 (Tasks, Concurrency, and Workflow History) completed and verified.
 > 
 > - **Backend:** .NET 9 (`net9.0`) Clean Architecture with ASP.NET Core Identity & EF Core Npgsql migrations.
-> - **Projects & Membership:** Complete project lifecycle (Create, List with search/status filters and bounded pagination, Details, Update, Archive) and member management (Owner, Manager, Member) with resource-level authorization.
-> - **Frontend:** Angular 22 standalone with responsive Project List, filter toolbar, pagination, create modal, and comprehensive Project Detail & Team Management views.
-> - **Verification:** 100% test pass on backend unit tests (24/24), integration tests (17/17), and frontend Vitest suite (17/17).
+> - **Projects & Membership:** Project lifecycle and member management (Owner, Manager, Member) with resource concealment for unauthorized access.
+> - **Tasks & Workflow:** Complete task lifecycle (`Backlog`, `ToDo`, `InProgress`, `Blocked`, `Done`, `Cancelled`) with documented transition matrix (`docs/TASK_TRANSITIONS.md`), optimistic concurrency (`version` token mapped to HTTP 409 Conflict), active-member assignee validation, threaded comments, and immutable status audit history.
+> - **Frontend:** Angular 22 standalone with responsive Kanban Board & Table views, transition dropdowns, quick moves, task creation modal with member picker, task detail view with live discussion and audit history timeline.
+> - **Verification:** 100% test pass on backend unit tests (87/87), integration tests (26/26), and frontend Vitest suite (26/26). Production build passing with zero warnings.
 
 ## Technology decisions
 

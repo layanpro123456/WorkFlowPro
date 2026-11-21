@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using WorkFlowPro.Domain.Exceptions;
 
 namespace WorkFlowPro.Api.Middleware;
@@ -82,6 +83,28 @@ public class ExceptionHandlingMiddleware
                     Status = StatusCodes.Status400BadRequest,
                     Title = "Domain Rule Violation",
                     Detail = domainException.Message,
+                    Instance = context.Request.Path
+                };
+                break;
+
+            case ConcurrencyException concurrencyException:
+                context.Response.StatusCode = StatusCodes.Status409Conflict;
+                problemDetails = new ProblemDetails
+                {
+                    Status = StatusCodes.Status409Conflict,
+                    Title = "Concurrency Conflict",
+                    Detail = concurrencyException.Message,
+                    Instance = context.Request.Path
+                };
+                break;
+
+            case DbUpdateConcurrencyException:
+                context.Response.StatusCode = StatusCodes.Status409Conflict;
+                problemDetails = new ProblemDetails
+                {
+                    Status = StatusCodes.Status409Conflict,
+                    Title = "Concurrency Conflict",
+                    Detail = "The resource was modified or deleted by another operation. Please refresh and try again.",
                     Instance = context.Request.Path
                 };
                 break;

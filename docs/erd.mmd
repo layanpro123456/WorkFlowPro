@@ -5,6 +5,12 @@ erDiagram
     AspNetUsers ||--o{ projects : "creates"
     AspNetUsers ||--o{ project_members : "participates in"
     projects ||--o{ project_members : "contains"
+    projects ||--o{ tasks : "contains"
+    AspNetUsers ||--o{ tasks : "assignee"
+    tasks ||--o{ task_comments : "has"
+    AspNetUsers ||--o{ task_comments : "author"
+    tasks ||--o{ task_status_histories : "tracks"
+    AspNetUsers ||--o{ task_status_histories : "changed by"
 
     AspNetUsers {
         uuid Id PK
@@ -60,4 +66,38 @@ erDiagram
         uuid UserId PK, FK
         string ProjectRole
         timestamptz JoinedAtUtc
+    }
+
+    tasks {
+        uuid Id PK
+        uuid ProjectId FK
+        string Title
+        string Description
+        string Status
+        string Priority
+        uuid AssigneeId FK
+        uuid CreatedById FK
+        timestamptz DueAtUtc
+        int EstimateMinutes
+        int Version
+        timestamptz CreatedAtUtc
+        timestamptz UpdatedAtUtc
+    }
+
+    task_comments {
+        uuid Id PK
+        uuid TaskId FK
+        uuid AuthorId FK
+        string Body
+        timestamptz CreatedAtUtc
+    }
+
+    task_status_histories {
+        uuid Id PK
+        uuid TaskId FK
+        string FromStatus
+        string ToStatus
+        uuid ChangedById FK
+        timestamptz ChangedAtUtc
+        string Comment
     }

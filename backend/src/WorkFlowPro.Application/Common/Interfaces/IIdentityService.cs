@@ -14,4 +14,8 @@ public interface IIdentityService
     Task<bool> IsUserActiveAsync(Guid userId, CancellationToken cancellationToken);
 
     Task<IList<string>> GetUserRolesAsync(Guid userId, CancellationToken cancellationToken);
+
+    Task<IDictionary<Guid, (string DisplayName, string Email)>> GetUsersSummaryAsync(
+        IEnumerable<Guid> userIds,
+        CancellationToken cancellationToken);
 }

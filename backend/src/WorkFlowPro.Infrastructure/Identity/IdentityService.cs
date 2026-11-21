@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using WorkFlowPro.Application.Common.Interfaces;
 
 namespace WorkFlowPro.Infrastructure.Identity;
@@ -69,5 +70,23 @@ public class IdentityService : IIdentityService
         if (user == null) return Array.Empty<string>();
 
         return await _userManager.GetRolesAsync(user);
+    }
+
+    public async Task<IDictionary<Guid, (string DisplayName, string Email)>> GetUsersSummaryAsync(
+        IEnumerable<Guid> userIds,
+        CancellationToken cancellationToken)
+    {
+        var distinctIds = userIds.Distinct().ToList();
+        if (!distinctIds.Any())
+        {
+            return new Dictionary<Guid, (string DisplayName, string Email)>();
+        }
+
+        var users = await _userManager.Users
+            .Where(u => distinctIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName, Email = u.Email ?? string.Empty })
+            .ToDictionaryAsync(u => u.Id, u => (u.DisplayName, u.Email), cancellationToken);
+
+        return users;
     }
 }
