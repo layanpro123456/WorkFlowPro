@@ -2,6 +2,9 @@ erDiagram
     AspNetUsers ||--o{ AspNetUserRoles : "has"
     AspNetRoles ||--o{ AspNetUserRoles : "assigned to"
     AspNetUsers ||--o{ refresh_tokens : "owns"
+    AspNetUsers ||--o{ projects : "creates"
+    AspNetUsers ||--o{ project_members : "participates in"
+    projects ||--o{ project_members : "contains"
 
     AspNetUsers {
         uuid Id PK
@@ -36,4 +39,25 @@ erDiagram
         string DeviceLabel
         timestamptz CreatedAtUtc
         timestamptz UpdatedAtUtc
+    }
+
+    projects {
+        uuid Id PK
+        string ProjectCode UK
+        string Name
+        string Description
+        string Status
+        date StartDate
+        date TargetDate
+        uuid CreatedById FK
+        timestamptz CreatedAtUtc
+        timestamptz UpdatedAtUtc
+        timestamptz ArchivedAtUtc
+    }
+
+    project_members {
+        uuid ProjectId PK, FK
+        uuid UserId PK, FK
+        string ProjectRole
+        timestamptz JoinedAtUtc
     }

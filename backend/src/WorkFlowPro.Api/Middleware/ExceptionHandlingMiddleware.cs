@@ -64,6 +64,17 @@ public class ExceptionHandlingMiddleware
                 };
                 break;
 
+            case KeyNotFoundException notFoundException:
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                problemDetails = new ProblemDetails
+                {
+                    Status = StatusCodes.Status404NotFound,
+                    Title = "Not Found",
+                    Detail = notFoundException.Message,
+                    Instance = context.Request.Path
+                };
+                break;
+
             case DomainException domainException:
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 problemDetails = new ProblemDetails
