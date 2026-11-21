@@ -20,6 +20,7 @@ public interface IApplicationDbContext
     DbSet<ApprovalRequestStep> ApprovalRequestSteps { get; }
     DbSet<ApprovalDecision> ApprovalDecisions { get; }
     DbSet<InAppNotification> Notifications { get; }
+    DbSet<AuditLog> AuditLogs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using WorkFlowPro.Application.Features.Admin.Services;
 using WorkFlowPro.Application.Features.Approvals.Services;
 using WorkFlowPro.Application.Features.Auth.Services;
 using WorkFlowPro.Application.Features.Dashboard.Services;
@@ -24,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationAppService, NotificationAppService>();
         services.AddScoped<IDashboardAppService, DashboardAppService>();
         services.AddScoped<IReportAppService, ReportAppService>();
+        services.AddScoped<IAdminAppService, AdminAppService>();
 
         return services;
     }

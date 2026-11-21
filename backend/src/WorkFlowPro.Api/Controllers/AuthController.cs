@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WorkFlowPro.Application.Features.Auth.Dtos;
 using WorkFlowPro.Application.Features.Auth.Services;
 
@@ -7,6 +8,7 @@ namespace WorkFlowPro.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/[controller]")]
+[EnableRateLimiting("AuthPolicy")]
 public class AuthController : ControllerBase
 {
     private const string RefreshTokenCookieName = "workflowpro_refresh_token";

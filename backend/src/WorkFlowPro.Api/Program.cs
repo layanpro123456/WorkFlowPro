@@ -1,5 +1,7 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using WorkFlowPro.Api.Middleware;
@@ -22,6 +24,26 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
+
+// Configure Rate Limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("AuthPolicy", httpContext =>
+    {
+        var clientIp = httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault()
+            ?? httpContext.Connection.RemoteIpAddress?.ToString();
+
+        var key = clientIp ?? ("client-" + httpContext.TraceIdentifier);
+
+        return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 15,
+            QueueLimit = 0
+        });
+    });
+});
 
 // Configure CORS
 var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
@@ -83,6 +105,9 @@ var app = builder.Build();
 // Global Exception Handling Middleware
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+// Security Headers Middleware
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
 // Database initialisation & synthetic seeding in Development / container startup
 if (app.Environment.IsDevelopment())
 {
@@ -102,6 +127,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors("DefaultCorsPolicy");
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

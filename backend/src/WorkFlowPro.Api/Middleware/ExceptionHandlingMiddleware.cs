@@ -98,6 +98,28 @@ public class ExceptionHandlingMiddleware
                 };
                 break;
 
+            case InvalidOperationException invalidOpException:
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                problemDetails = new ProblemDetails
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Invalid Operation",
+                    Detail = invalidOpException.Message,
+                    Instance = context.Request.Path
+                };
+                break;
+
+            case ArgumentException argException:
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                problemDetails = new ProblemDetails
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Invalid Argument",
+                    Detail = argException.Message,
+                    Instance = context.Request.Path
+                };
+                break;
+
             case ConcurrencyException concurrencyException:
                 context.Response.StatusCode = StatusCodes.Status409Conflict;
                 problemDetails = new ProblemDetails

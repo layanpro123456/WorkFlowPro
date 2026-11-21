@@ -7,10 +7,14 @@ namespace WorkFlowPro.Infrastructure.Identity;
 public class IdentityService : IIdentityService
 {
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly RoleManager<ApplicationRole> _roleManager;
 
-    public IdentityService(UserManager<ApplicationUser> userManager)
+    public IdentityService(
+        UserManager<ApplicationUser> userManager,
+        RoleManager<ApplicationRole> roleManager)
     {
         _userManager = userManager;
+        _roleManager = roleManager;
     }
 
     public async Task<(bool Success, bool IsInactive, Guid UserId, string Email, string DisplayName, IList<string> Roles)> CheckCredentialsAsync(
@@ -113,5 +117,159 @@ public class IdentityService : IIdentityService
         }
 
         return result;
+    }
+
+    public async Task<(IReadOnlyList<(Guid Id, string Email, string DisplayName, bool IsActive, IList<string> Roles, DateTime CreatedAtUtc, DateTime? UpdatedAtUtc)> Items, int TotalCount)> ListUsersAsync(
+        string? search,
+        string? role,
+        bool? isActive,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        page = Math.Max(1, page);
+
+        var query = _userManager.Users.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(u => u.DisplayName.Contains(term) || (u.Email != null && u.Email.Contains(term)));
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(u => u.IsActive == isActive.Value);
+        }
+
+        var usersList = await query
+            .OrderByDescending(u => u.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var userRoleList = new List<(ApplicationUser User, IList<string> Roles)>();
+        foreach (var u in usersList)
+        {
+            var roles = await _userManager.GetRolesAsync(u);
+            if (string.IsNullOrWhiteSpace(role) || role == "All" || roles.Contains(role, StringComparer.OrdinalIgnoreCase))
+            {
+                userRoleList.Add((u, roles));
+            }
+        }
+
+        var totalCount = userRoleList.Count;
+        var paged = userRoleList
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => (x.User.Id, x.User.Email ?? string.Empty, x.User.DisplayName, x.User.IsActive, x.Roles, x.User.CreatedAtUtc, x.User.UpdatedAtUtc))
+            .ToList();
+
+        return (paged, totalCount);
+    }
+
+    public async Task<(Guid Id, string Email, string DisplayName, bool IsActive, IList<string> Roles, DateTime CreatedAtUtc, DateTime? UpdatedAtUtc)> CreateUserAsync(
+        string email,
+        string displayName,
+        string password,
+        IList<string> roles,
+        CancellationToken cancellationToken)
+    {
+        var existing = await _userManager.FindByEmailAsync(email);
+        if (existing != null)
+        {
+            throw new InvalidOperationException($"User with email '{email}' already exists.");
+        }
+
+        var user = new ApplicationUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = email,
+            Email = email,
+            DisplayName = displayName,
+            IsActive = true,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        var createResult = await _userManager.CreateAsync(user, password);
+        if (!createResult.Succeeded)
+        {
+            var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
+            throw new InvalidOperationException($"Failed to create user: {errors}");
+        }
+
+        if (roles != null && roles.Count > 0)
+        {
+            await _userManager.AddToRolesAsync(user, roles);
+        }
+
+        var assignedRoles = await _userManager.GetRolesAsync(user);
+        return (user.Id, user.Email ?? string.Empty, user.DisplayName, user.IsActive, assignedRoles, user.CreatedAtUtc, user.UpdatedAtUtc);
+    }
+
+    public async Task<(Guid Id, string Email, string DisplayName, bool IsActive, IList<string> Roles, DateTime CreatedAtUtc, DateTime? UpdatedAtUtc)> SetUserStatusAsync(
+        Guid userId,
+        bool isActive,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            throw new KeyNotFoundException($"User with ID '{userId}' was not found.");
+        }
+
+        user.IsActive = isActive;
+        user.UpdatedAtUtc = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
+
+        var roles = await _userManager.GetRolesAsync(user);
+        return (user.Id, user.Email ?? string.Empty, user.DisplayName, user.IsActive, roles, user.CreatedAtUtc, user.UpdatedAtUtc);
+    }
+
+    public async Task<(Guid Id, string Email, string DisplayName, bool IsActive, IList<string> Roles, DateTime CreatedAtUtc, DateTime? UpdatedAtUtc)> SetUserRolesAsync(
+        Guid userId,
+        IList<string> roles,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            throw new KeyNotFoundException($"User with ID '{userId}' was not found.");
+        }
+
+        var currentRoles = await _userManager.GetRolesAsync(user);
+        var rolesToRemove = currentRoles.Except(roles, StringComparer.OrdinalIgnoreCase).ToList();
+        var rolesToAdd = roles.Except(currentRoles, StringComparer.OrdinalIgnoreCase).ToList();
+
+        if (rolesToRemove.Any())
+        {
+            await _userManager.RemoveFromRolesAsync(user, rolesToRemove);
+        }
+
+        if (rolesToAdd.Any())
+        {
+            await _userManager.AddToRolesAsync(user, rolesToAdd);
+        }
+
+        user.UpdatedAtUtc = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
+
+        var updatedRoles = await _userManager.GetRolesAsync(user);
+        return (user.Id, user.Email ?? string.Empty, user.DisplayName, user.IsActive, updatedRoles, user.CreatedAtUtc, user.UpdatedAtUtc);
+    }
+
+    public async Task<bool> IsSoleActiveAdminAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var adminUsers = await _userManager.GetUsersInRoleAsync(Domain.Constants.Roles.Administrator);
+        var activeAdmins = adminUsers.Where(u => u.IsActive).ToList();
+
+        return activeAdmins.Count == 1 && activeAdmins[0].Id == userId;
+    }
+
+    public async Task<IReadOnlyList<string>> GetAllRolesAsync(CancellationToken cancellationToken)
+    {
+        var roles = await _roleManager.Roles.Select(r => r.Name!).ToListAsync(cancellationToken);
+        return roles.Count > 0 ? roles : Domain.Constants.Roles.All;
     }
 }

@@ -22,4 +22,36 @@ public interface IIdentityService
     Task<IReadOnlyList<(Guid UserId, string DisplayName, string Email, IList<string> Roles)>> GetUsersInRolesAsync(
         IEnumerable<string> roles,
         CancellationToken cancellationToken);
+
+    Task<(IReadOnlyList<(Guid Id, string Email, string DisplayName, bool IsActive, IList<string> Roles, DateTime CreatedAtUtc, DateTime? UpdatedAtUtc)> Items, int TotalCount)> ListUsersAsync(
+        string? search,
+        string? role,
+        bool? isActive,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken);
+
+    Task<(Guid Id, string Email, string DisplayName, bool IsActive, IList<string> Roles, DateTime CreatedAtUtc, DateTime? UpdatedAtUtc)> CreateUserAsync(
+        string email,
+        string displayName,
+        string password,
+        IList<string> roles,
+        CancellationToken cancellationToken);
+
+    Task<(Guid Id, string Email, string DisplayName, bool IsActive, IList<string> Roles, DateTime CreatedAtUtc, DateTime? UpdatedAtUtc)> SetUserStatusAsync(
+        Guid userId,
+        bool isActive,
+        CancellationToken cancellationToken);
+
+    Task<(Guid Id, string Email, string DisplayName, bool IsActive, IList<string> Roles, DateTime CreatedAtUtc, DateTime? UpdatedAtUtc)> SetUserRolesAsync(
+        Guid userId,
+        IList<string> roles,
+        CancellationToken cancellationToken);
+
+    Task<bool> IsSoleActiveAdminAsync(
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<string>> GetAllRolesAsync(
+        CancellationToken cancellationToken);
 }

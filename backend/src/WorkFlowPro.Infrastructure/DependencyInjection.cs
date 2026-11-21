@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WorkFlowPro.Application.Common.Interfaces;
 using WorkFlowPro.Infrastructure.Identity;
 using WorkFlowPro.Infrastructure.Persistence;
+using WorkFlowPro.Infrastructure.Services;
 
 namespace WorkFlowPro.Infrastructure;
 
@@ -51,6 +52,7 @@ public static class DependencyInjection
 
         services.AddTransient<IIdentityService, IdentityService>();
         services.AddTransient<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IAuditService, AuditService>();
 
         return services;
     }

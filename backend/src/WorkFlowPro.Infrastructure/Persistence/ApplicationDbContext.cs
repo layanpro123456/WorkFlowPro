@@ -28,6 +28,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<ApprovalRequestStep> ApprovalRequestSteps => Set<ApprovalRequestStep>();
     public DbSet<ApprovalDecision> ApprovalDecisions => Set<ApprovalDecision>();
     public DbSet<InAppNotification> Notifications => Set<InAppNotification>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -511,6 +512,35 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
                 .WithMany()
                 .HasForeignKey(n => n.RecipientId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<AuditLog>(b =>
+        {
+            b.ToTable("audit_logs");
+            b.HasKey(a => a.Id);
+
+            b.Property(a => a.Action)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            b.Property(a => a.EntityType)
+                .HasMaxLength(80)
+                .IsRequired();
+
+            b.Property(a => a.CorrelationId)
+                .HasMaxLength(100);
+
+            b.Property(a => a.MetadataJson)
+                .HasColumnName("metadata");
+
+            b.HasIndex(a => a.OccurredAtUtc);
+            b.HasIndex(a => new { a.ActorId, a.OccurredAtUtc });
+            b.HasIndex(a => new { a.EntityType, a.EntityId });
+
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(a => a.ActorId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }
