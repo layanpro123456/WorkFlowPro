@@ -19,6 +19,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<TaskComment> TaskComments => Set<TaskComment>();
     public DbSet<TaskStatusHistory> TaskStatusHistories => Set<TaskStatusHistory>();
+    public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
+    public DbSet<TicketMessage> TicketMessages => Set<TicketMessage>();
+    public DbSet<TicketStatusHistory> TicketStatusHistories => Set<TicketStatusHistory>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -205,6 +208,108 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
             b.Property(h => h.Comment);
 
             b.HasIndex(h => new { h.TaskId, h.ChangedAtUtc });
+
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(h => h.ChangedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<SupportTicket>(b =>
+        {
+            b.ToTable("support_tickets");
+            b.HasKey(t => t.Id);
+
+            b.Property(t => t.TicketNumber)
+                .ValueGeneratedOnAdd();
+
+            b.HasIndex(t => t.TicketNumber)
+                .IsUnique();
+
+            b.Property(t => t.Subject)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            b.Property(t => t.Description)
+                .IsRequired();
+
+            b.Property(t => t.Category)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            b.Property(t => t.Priority)
+                .HasMaxLength(20)
+                .IsRequired();
+
+            b.Property(t => t.Status)
+                .HasMaxLength(30)
+                .IsRequired();
+
+            b.HasIndex(t => new { t.RequesterId, t.Status });
+            b.HasIndex(t => new { t.AssigneeId, t.Status });
+            b.HasIndex(t => new { t.Status, t.Priority });
+            b.HasIndex(t => t.CreatedAtUtc);
+
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(t => t.RequesterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(t => t.AssigneeId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            b.HasOne(t => t.RelatedProject)
+                .WithMany()
+                .HasForeignKey(t => t.RelatedProjectId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            b.HasMany(t => t.Messages)
+                .WithOne(m => m.Ticket)
+                .HasForeignKey(m => m.TicketId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(t => t.StatusHistory)
+                .WithOne(h => h.Ticket)
+                .HasForeignKey(h => h.TicketId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<TicketMessage>(b =>
+        {
+            b.ToTable("ticket_messages");
+            b.HasKey(m => m.Id);
+
+            b.Property(m => m.Body)
+                .IsRequired();
+
+            b.Property(m => m.IsInternalNote)
+                .IsRequired();
+
+            b.HasIndex(m => new { m.TicketId, m.CreatedAtUtc });
+
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(m => m.AuthorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<TicketStatusHistory>(b =>
+        {
+            b.ToTable("ticket_status_histories");
+            b.HasKey(h => h.Id);
+
+            b.Property(h => h.FromStatus)
+                .HasMaxLength(30);
+
+            b.Property(h => h.ToStatus)
+                .HasMaxLength(30)
+                .IsRequired();
+
+            b.Property(h => h.Comment);
+
+            b.HasIndex(h => new { h.TicketId, h.ChangedAtUtc });
 
             b.HasOne<ApplicationUser>()
                 .WithMany()

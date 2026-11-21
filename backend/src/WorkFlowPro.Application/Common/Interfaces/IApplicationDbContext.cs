@@ -11,6 +11,9 @@ public interface IApplicationDbContext
     DbSet<TaskItem> Tasks { get; }
     DbSet<TaskComment> TaskComments { get; }
     DbSet<TaskStatusHistory> TaskStatusHistories { get; }
+    DbSet<SupportTicket> SupportTickets { get; }
+    DbSet<TicketMessage> TicketMessages { get; }
+    DbSet<TicketStatusHistory> TicketStatusHistories { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

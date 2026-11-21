@@ -18,4 +18,8 @@ public interface IIdentityService
     Task<IDictionary<Guid, (string DisplayName, string Email)>> GetUsersSummaryAsync(
         IEnumerable<Guid> userIds,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<(Guid UserId, string DisplayName, string Email, IList<string> Roles)>> GetUsersInRolesAsync(
+        IEnumerable<string> roles,
+        CancellationToken cancellationToken);
 }

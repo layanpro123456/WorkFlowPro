@@ -89,4 +89,27 @@ public class IdentityService : IIdentityService
 
         return users;
     }
+
+    public async Task<IReadOnlyList<(Guid UserId, string DisplayName, string Email, IList<string> Roles)>> GetUsersInRolesAsync(
+        IEnumerable<string> roles,
+        CancellationToken cancellationToken)
+    {
+        var roleList = roles.ToList();
+        var result = new List<(Guid UserId, string DisplayName, string Email, IList<string> Roles)>();
+
+        var activeUsers = await _userManager.Users
+            .Where(u => u.IsActive)
+            .ToListAsync(cancellationToken);
+
+        foreach (var user in activeUsers)
+        {
+            var userRoles = await _userManager.GetRolesAsync(user);
+            if (userRoles.Any(r => roleList.Contains(r, StringComparer.OrdinalIgnoreCase)))
+            {
+                result.Add((user.Id, user.DisplayName, user.Email ?? string.Empty, userRoles));
+            }
+        }
+
+        return result;
+    }
 }
