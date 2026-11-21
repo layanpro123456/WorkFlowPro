@@ -1,0 +1,39 @@
+erDiagram
+    AspNetUsers ||--o{ AspNetUserRoles : "has"
+    AspNetRoles ||--o{ AspNetUserRoles : "assigned to"
+    AspNetUsers ||--o{ refresh_tokens : "owns"
+
+    AspNetUsers {
+        uuid Id PK
+        string DisplayName
+        boolean IsActive
+        timestamptz CreatedAtUtc
+        timestamptz UpdatedAtUtc
+        string Email
+        string UserName
+        string PasswordHash
+        int AccessFailedCount
+    }
+
+    AspNetRoles {
+        uuid Id PK
+        string Name
+        string NormalizedName
+    }
+
+    AspNetUserRoles {
+        uuid UserId PK, FK
+        uuid RoleId PK, FK
+    }
+
+    refresh_tokens {
+        uuid Id PK
+        uuid UserId FK
+        string TokenHash UK
+        timestamptz ExpiresAtUtc
+        timestamptz RevokedAtUtc
+        uuid ReplacedByTokenId
+        string DeviceLabel
+        timestamptz CreatedAtUtc
+        timestamptz UpdatedAtUtc
+    }

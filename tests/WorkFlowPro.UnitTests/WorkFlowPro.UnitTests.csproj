@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\backend\src\WorkFlowPro.Domain\WorkFlowPro.Domain.csproj" />
     <ProjectReference Include="..\..\backend\src\WorkFlowPro.Application\WorkFlowPro.Application.csproj" />
+    <ProjectReference Include="..\..\backend\src\WorkFlowPro.Infrastructure\WorkFlowPro.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

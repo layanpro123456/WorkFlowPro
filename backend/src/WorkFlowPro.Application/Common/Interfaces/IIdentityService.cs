@@ -1,0 +1,17 @@
+namespace WorkFlowPro.Application.Common.Interfaces;
+
+public interface IIdentityService
+{
+    Task<(bool Success, bool IsInactive, Guid UserId, string Email, string DisplayName, IList<string> Roles)> CheckCredentialsAsync(
+        string email,
+        string password,
+        CancellationToken cancellationToken);
+
+    Task<(Guid UserId, string Email, string DisplayName, IList<string> Roles)?> GetUserByIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    Task<bool> IsUserActiveAsync(Guid userId, CancellationToken cancellationToken);
+
+    Task<IList<string>> GetUserRolesAsync(Guid userId, CancellationToken cancellationToken);
+}

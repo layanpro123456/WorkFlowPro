@@ -1,0 +1,17 @@
+namespace WorkFlowPro.Domain.Constants;
+
+public static class Roles
+{
+    public const string Administrator = "Administrator";
+    public const string Manager = "Manager";
+    public const string Employee = "Employee";
+    public const string SupportAgent = "SupportAgent";
+
+    public static readonly IReadOnlyList<string> All = new[]
+    {
+        Administrator,
+        Manager,
+        Employee,
+        SupportAgent
+    };
+}

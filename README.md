@@ -4,11 +4,12 @@
 
 WorkFlowPro is a portfolio project intended to demonstrate practical full-stack enterprise application engineering with ASP.NET Core 10, Angular, PostgreSQL, automated testing and containerized deployment.
 
-> **Project status:** Phase 0 (Repository Foundation) completed and verified. Clean Architecture solution, projects, Angular workspace, health endpoints, Scalar OpenAPI, and CI pipeline are configured and passing.
+> **Project status:** Phase 1 (Foundation and Identity) completed and verified.
 > 
-> - **Backend:** .NET 9 (`net9.0`)
-> - **Frontend:** Angular 22 standalone
-> - **Verification:** 100% test pass on backend unit & integration tests and frontend Vitest suite.
+> - **Backend:** .NET 9 (`net9.0`) with ASP.NET Core Identity & EF Core Npgsql PostgreSQL migrations.
+> - **Authentication:** JWT access tokens (in-memory) + rotating refresh tokens with SHA-256 server-side hashing stored via HttpOnly Secure SameSite cookies.
+> - **Frontend:** Angular 22 standalone workspace with AuthService, HttpInterceptor, AuthGuard, role-aware shell, accessible login form, and dashboard.
+> - **Verification:** 100% test pass on all backend unit tests (12/12), integration tests (11/11), and frontend Vitest suite (9/9).
 
 ## Technology decisions
 
