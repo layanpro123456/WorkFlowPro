@@ -27,6 +27,7 @@ erDiagram
     AspNetUsers ||--o{ approval_request_steps : "designated approver"
     approval_request_steps ||--o| approval_decisions : "has decision"
     AspNetUsers ||--o{ approval_decisions : "decided by"
+    AspNetUsers ||--o{ notifications : "receives"
 
     AspNetUsers {
         uuid Id PK
@@ -210,6 +211,19 @@ erDiagram
         string Decision
         string Comment
         timestamptz DecidedAtUtc
+        timestamptz CreatedAtUtc
+        timestamptz UpdatedAtUtc
+    }
+
+    notifications {
+        uuid Id PK
+        uuid RecipientId FK
+        string Type
+        string Title
+        string Message
+        string EntityType
+        uuid EntityId
+        timestamptz ReadAtUtc
         timestamptz CreatedAtUtc
         timestamptz UpdatedAtUtc
     }

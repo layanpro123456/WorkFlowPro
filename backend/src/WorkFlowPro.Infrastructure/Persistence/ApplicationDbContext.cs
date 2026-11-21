@@ -27,6 +27,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<ApprovalRequest> ApprovalRequests => Set<ApprovalRequest>();
     public DbSet<ApprovalRequestStep> ApprovalRequestSteps => Set<ApprovalRequestStep>();
     public DbSet<ApprovalDecision> ApprovalDecisions => Set<ApprovalDecision>();
+    public DbSet<InAppNotification> Notifications => Set<InAppNotification>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -479,6 +480,37 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
                 .WithMany()
                 .HasForeignKey(d => d.ApproverId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<InAppNotification>(b =>
+        {
+            b.ToTable("notifications");
+            b.HasKey(n => n.Id);
+
+            b.Property(n => n.Type)
+                .HasMaxLength(60)
+                .IsRequired();
+
+            b.Property(n => n.Title)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            b.Property(n => n.Message)
+                .IsRequired();
+
+            b.Property(n => n.EntityType)
+                .HasMaxLength(50);
+
+            b.Property(n => n.EntityId);
+
+            b.Property(n => n.ReadAtUtc);
+
+            b.HasIndex(n => new { n.RecipientId, n.ReadAtUtc, n.CreatedAtUtc });
+
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(n => n.RecipientId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

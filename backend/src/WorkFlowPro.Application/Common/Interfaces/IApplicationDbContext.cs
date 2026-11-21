@@ -19,6 +19,7 @@ public interface IApplicationDbContext
     DbSet<ApprovalRequest> ApprovalRequests { get; }
     DbSet<ApprovalRequestStep> ApprovalRequestSteps { get; }
     DbSet<ApprovalDecision> ApprovalDecisions { get; }
+    DbSet<InAppNotification> Notifications { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
