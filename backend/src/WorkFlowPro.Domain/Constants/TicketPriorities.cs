@@ -14,4 +14,7 @@ public static class TicketPriorities
         High,
         Urgent
     };
+
+    public static bool IsValid(string? priority) =>
+        priority != null && All.Contains(priority, StringComparer.OrdinalIgnoreCase);
 }

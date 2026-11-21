@@ -18,4 +18,7 @@ public static class TicketCategories
         Access,
         BugReport
     };
+
+    public static bool IsValid(string? category) =>
+        category != null && All.Contains(category, StringComparer.OrdinalIgnoreCase);
 }

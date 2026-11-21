@@ -371,6 +371,18 @@ public class TicketAppService : ITicketAppService
             _context.TicketStatusHistories.Add(history);
         }
 
+        if (request.AssigneeId != callerId)
+        {
+            _context.Notifications.Add(new InAppNotification(
+                request.AssigneeId,
+                NotificationTypes.TicketAssigned,
+                $"Assigned to Ticket #{ticket.TicketNumber}",
+                $"You were assigned to ticket #{ticket.TicketNumber}: '{ticket.Subject}'.",
+                "Ticket",
+                ticket.Id
+            ));
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         var userIds = new List<Guid> { ticket.RequesterId };
@@ -421,6 +433,18 @@ public class TicketAppService : ITicketAppService
         var history = ticket.ChangeStatus(request.Status, callerId, request.Comment);
         _context.TicketStatusHistories.Add(history);
 
+        if (ticket.RequesterId != callerId)
+        {
+            _context.Notifications.Add(new InAppNotification(
+                ticket.RequesterId,
+                NotificationTypes.TicketStatusChanged,
+                $"Ticket #{ticket.TicketNumber} Status: {request.Status}",
+                $"Your ticket #{ticket.TicketNumber} moved to {request.Status}.",
+                "Ticket",
+                ticket.Id
+            ));
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         var userIds = new List<Guid> { ticket.RequesterId };
@@ -469,6 +493,32 @@ public class TicketAppService : ITicketAppService
         {
             var history = ticket.ChangeStatus(TicketStatuses.InProgress, callerId, "Requester replied.");
             _context.TicketStatusHistories.Add(history);
+        }
+
+        if (!request.IsInternalNote)
+        {
+            if (isAgent && ticket.RequesterId != callerId)
+            {
+                _context.Notifications.Add(new InAppNotification(
+                    ticket.RequesterId,
+                    NotificationTypes.TicketReplyAdded,
+                    $"Reply on Ticket #{ticket.TicketNumber}",
+                    $"Support agent posted a reply on your ticket #{ticket.TicketNumber}.",
+                    "Ticket",
+                    ticket.Id
+                ));
+            }
+            else if (!isAgent && ticket.AssigneeId.HasValue && ticket.AssigneeId.Value != callerId)
+            {
+                _context.Notifications.Add(new InAppNotification(
+                    ticket.AssigneeId.Value,
+                    NotificationTypes.TicketReplyAdded,
+                    $"Message on Ticket #{ticket.TicketNumber}",
+                    $"Requester posted a message on ticket #{ticket.TicketNumber}.",
+                    "Ticket",
+                    ticket.Id
+                ));
+            }
         }
 
         await _context.SaveChangesAsync(cancellationToken);

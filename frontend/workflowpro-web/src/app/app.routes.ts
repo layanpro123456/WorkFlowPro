@@ -55,6 +55,10 @@ export const routes: Routes = [
       {
         path: 'approvals/:id',
         loadComponent: () => import('./features/approvals/approval-detail.component').then(m => m.ApprovalDetailComponent)
+      },
+      {
+        path: 'reports',
+        loadComponent: () => import('./features/reports/reports.component').then(m => m.ReportsComponent)
       }
     ]
   },

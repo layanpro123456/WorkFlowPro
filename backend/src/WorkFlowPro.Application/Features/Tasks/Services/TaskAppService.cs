@@ -78,6 +78,19 @@ public class TaskAppService : ITaskAppService
         );
 
         _context.Tasks.Add(task);
+
+        if (task.AssigneeId.HasValue && task.AssigneeId.Value != callerId)
+        {
+            _context.Notifications.Add(new InAppNotification(
+                task.AssigneeId.Value,
+                NotificationTypes.TaskAssigned,
+                $"Assigned to Task: {task.Title}",
+                $"You have been assigned to task '{task.Title}' in {project.ProjectCode}.",
+                "Task",
+                task.Id
+            ));
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         var userMap = await GetUserMapAsync(new[] { callerId, request.AssigneeId ?? Guid.Empty }, cancellationToken);
@@ -397,6 +410,19 @@ public class TaskAppService : ITaskAppService
 
         var comment = task.AddComment(callerId, request.Body);
         _context.TaskComments.Add(comment);
+
+        if (task.AssigneeId.HasValue && task.AssigneeId.Value != callerId)
+        {
+            _context.Notifications.Add(new InAppNotification(
+                task.AssigneeId.Value,
+                NotificationTypes.TaskCommentAdded,
+                $"New Comment on Task: {task.Title}",
+                $"A new comment was posted on task '{task.Title}'.",
+                "Task",
+                task.Id
+            ));
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         var callerUser = await _identityService.GetUserByIdAsync(callerId, cancellationToken);

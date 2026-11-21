@@ -18,4 +18,7 @@ public static class TaskStatuses
         Done,
         Cancelled
     };
+
+    public static bool IsValid(string? status) =>
+        status != null && All.Contains(status, StringComparer.OrdinalIgnoreCase);
 }

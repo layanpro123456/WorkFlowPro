@@ -331,6 +331,20 @@ public class ApprovalAppService : IApprovalAppService
             approvalRequest.AddStepSnapshot(step.StepOrder, step.Name, resolvedApproverId);
         }
 
+        // Create notification for the first approver
+        var firstStep = approvalRequest.Steps.FirstOrDefault(s => s.StepOrder == approvalRequest.CurrentStepOrder);
+        if (firstStep != null)
+        {
+            _context.Notifications.Add(new InAppNotification(
+                firstStep.ApproverUserId,
+                NotificationTypes.ApprovalActionRequired,
+                $"Action Required: Approval #{approvalRequest.RequestNumber}",
+                $"Approval Request #{approvalRequest.RequestNumber} ('{approvalRequest.Title}') requires your review for Step {firstStep.StepOrder}: {firstStep.Name}.",
+                "Approval",
+                approvalRequest.Id
+            ));
+        }
+
         _context.ApprovalRequests.Add(approvalRequest);
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -620,6 +634,56 @@ public class ApprovalAppService : IApprovalAppService
 
         // Add decision to context explicitly to avoid EF Core untracked entity issues
         _context.ApprovalDecisions.Add(decision);
+
+        if (decision.Decision == ApprovalDecisions.Approved)
+        {
+            if (request.Status == ApprovalRequestStatuses.Approved)
+            {
+                _context.Notifications.Add(new InAppNotification(
+                    request.RequesterId,
+                    NotificationTypes.ApprovalCompleted,
+                    $"Approval Request #{request.RequestNumber} Approved",
+                    $"Your approval request #{request.RequestNumber} ('{request.Title}') has been fully approved.",
+                    "Approval",
+                    request.Id
+                ));
+            }
+            else
+            {
+                var nextStep = request.Steps.FirstOrDefault(s => s.StepOrder == request.CurrentStepOrder);
+                if (nextStep != null)
+                {
+                    _context.Notifications.Add(new InAppNotification(
+                        nextStep.ApproverUserId,
+                        NotificationTypes.ApprovalActionRequired,
+                        $"Action Required: Approval #{request.RequestNumber}",
+                        $"Approval Request #{request.RequestNumber} ('{request.Title}') advanced to Step {nextStep.StepOrder}: {nextStep.Name} and requires your review.",
+                        "Approval",
+                        request.Id
+                    ));
+                }
+
+                _context.Notifications.Add(new InAppNotification(
+                    request.RequesterId,
+                    NotificationTypes.ApprovalDecided,
+                    $"Approval Request #{request.RequestNumber} Step Approved",
+                    $"A step was approved on request #{request.RequestNumber}.",
+                    "Approval",
+                    request.Id
+                ));
+            }
+        }
+        else if (decision.Decision == ApprovalDecisions.Rejected)
+        {
+            _context.Notifications.Add(new InAppNotification(
+                request.RequesterId,
+                NotificationTypes.ApprovalRejected,
+                $"Approval Request #{request.RequestNumber} Rejected",
+                $"Your approval request #{request.RequestNumber} ('{request.Title}') was rejected.",
+                "Approval",
+                request.Id
+            ));
+        }
 
         await _context.SaveChangesAsync(cancellationToken);
 
