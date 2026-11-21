@@ -238,6 +238,79 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.ToTable("refresh_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.SupportTicket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("AssigneeId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ClosedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("RelatedProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RequesterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ResolvedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("TicketNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("RelatedProjectId");
+
+                    b.HasIndex("TicketNumber")
+                        .IsUnique();
+
+                    b.HasIndex("AssigneeId", "Status");
+
+                    b.HasIndex("RequesterId", "Status");
+
+                    b.HasIndex("Status", "Priority");
+
+                    b.ToTable("support_tickets", (string)null);
+                });
+
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.TaskComment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -366,6 +439,73 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.HasIndex("TaskId", "ChangedAtUtc");
 
                     b.ToTable("task_status_histories", (string)null);
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.TicketMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsInternalNote")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("TicketId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("TicketId", "CreatedAtUtc");
+
+                    b.ToTable("ticket_messages", (string)null);
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.TicketStatusHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ChangedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ChangedById")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FromStatus")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("TicketId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedById");
+
+                    b.HasIndex("TicketId", "ChangedAtUtc");
+
+                    b.ToTable("ticket_status_histories", (string)null);
                 });
 
             modelBuilder.Entity("WorkFlowPro.Infrastructure.Identity.ApplicationRole", b =>
@@ -562,6 +702,27 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.SupportTicket", b =>
+                {
+                    b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AssigneeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("WorkFlowPro.Domain.Entities.Project", "RelatedProject")
+                        .WithMany()
+                        .HasForeignKey("RelatedProjectId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("RequesterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("RelatedProject");
+                });
+
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.TaskComment", b =>
                 {
                     b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
@@ -618,9 +779,50 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.Navigation("Task");
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.TicketMessage", b =>
+                {
+                    b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WorkFlowPro.Domain.Entities.SupportTicket", "Ticket")
+                        .WithMany("Messages")
+                        .HasForeignKey("TicketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ticket");
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.TicketStatusHistory", b =>
+                {
+                    b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ChangedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WorkFlowPro.Domain.Entities.SupportTicket", "Ticket")
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("TicketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ticket");
+                });
+
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.Project", b =>
                 {
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.SupportTicket", b =>
+                {
+                    b.Navigation("Messages");
+
+                    b.Navigation("StatusHistory");
                 });
 
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.TaskItem", b =>

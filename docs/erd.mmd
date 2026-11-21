@@ -11,6 +11,13 @@ erDiagram
     AspNetUsers ||--o{ task_comments : "author"
     tasks ||--o{ task_status_histories : "tracks"
     AspNetUsers ||--o{ task_status_histories : "changed by"
+    AspNetUsers ||--o{ support_tickets : "requester"
+    AspNetUsers ||--o{ support_tickets : "assignee"
+    projects ||--o{ support_tickets : "related project"
+    support_tickets ||--o{ ticket_messages : "has"
+    AspNetUsers ||--o{ ticket_messages : "author"
+    support_tickets ||--o{ ticket_status_histories : "tracks"
+    AspNetUsers ||--o{ ticket_status_histories : "changed by"
 
     AspNetUsers {
         uuid Id PK
@@ -95,6 +102,42 @@ erDiagram
     task_status_histories {
         uuid Id PK
         uuid TaskId FK
+        string FromStatus
+        string ToStatus
+        uuid ChangedById FK
+        timestamptz ChangedAtUtc
+        string Comment
+    }
+
+    support_tickets {
+        uuid Id PK
+        bigint TicketNumber UK
+        uuid RequesterId FK
+        uuid AssigneeId FK
+        uuid RelatedProjectId FK
+        string Subject
+        string Description
+        string Category
+        string Priority
+        string Status
+        timestamptz ResolvedAtUtc
+        timestamptz ClosedAtUtc
+        timestamptz CreatedAtUtc
+        timestamptz UpdatedAtUtc
+    }
+
+    ticket_messages {
+        uuid Id PK
+        uuid TicketId FK
+        uuid AuthorId FK
+        string Body
+        boolean IsInternalNote
+        timestamptz CreatedAtUtc
+    }
+
+    ticket_status_histories {
+        uuid Id PK
+        uuid TicketId FK
         string FromStatus
         string ToStatus
         uuid ChangedById FK
