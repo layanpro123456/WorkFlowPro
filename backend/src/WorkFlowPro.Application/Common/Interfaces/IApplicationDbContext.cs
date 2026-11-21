@@ -14,6 +14,11 @@ public interface IApplicationDbContext
     DbSet<SupportTicket> SupportTickets { get; }
     DbSet<TicketMessage> TicketMessages { get; }
     DbSet<TicketStatusHistory> TicketStatusHistories { get; }
+    DbSet<WorkflowDefinition> WorkflowDefinitions { get; }
+    DbSet<WorkflowStep> WorkflowSteps { get; }
+    DbSet<ApprovalRequest> ApprovalRequests { get; }
+    DbSet<ApprovalRequestStep> ApprovalRequestSteps { get; }
+    DbSet<ApprovalDecision> ApprovalDecisions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

@@ -4,14 +4,15 @@
 
 WorkFlowPro is a portfolio project intended to demonstrate practical full-stack enterprise application engineering with ASP.NET Core 10, Angular, PostgreSQL, automated testing and containerized deployment.
 
-> **Project status:** Phase 4 (Service Desk, Internal Note Privacy, and Lifecycle Auditing) completed and verified.
+> **Project status:** Phase 5 (Sequential Approval Workflows, Concurrency Control, and Decision Auditing) completed and verified.
 > 
 > - **Backend:** .NET 9 (`net9.0`) Clean Architecture with ASP.NET Core Identity & EF Core Npgsql migrations.
 > - **Projects & Membership:** Project lifecycle and member management (Owner, Manager, Member) with resource concealment for unauthorized access.
 > - **Tasks & Workflow:** Complete task lifecycle (`Backlog`, `ToDo`, `InProgress`, `Blocked`, `Done`, `Cancelled`) with documented transition matrix (`docs/TASK_TRANSITIONS.md`), optimistic concurrency (`version` token mapped to HTTP 409 Conflict), active-member assignee validation, threaded comments, and immutable status audit history.
 > - **Service Desk & Internal Notes Privacy:** End-to-end support ticket system with ticket lifecycle (`New`, `Assigned`, `InProgress`, `WaitingForRequester`, `Resolved`, `Closed`), sequential human-friendly ticket numbers (`#1001+`), strict internal notes privacy (internal notes filtered out at data layer for requesters; requesters strictly forbidden from creating internal notes mapped to HTTP 403 Forbidden), agent-only assignment and assignee listings, and audit history.
-> - **Frontend:** Angular 22 standalone with responsive Kanban Board & Table views, transition dropdowns, quick moves, task creation modal with member picker, task detail view with live discussion and audit history timeline, Service Desk list view with tab switcher (All Tickets vs My Tickets), ticket submission modal, and rich ticket detail view with internal note warnings and agent tools.
-> - **Verification:** 100% test pass on backend unit tests (139/139), integration tests (35/35), and frontend Vitest suite (42/42). Production build passing with zero warnings.
+> - **Approval Workflows Engine:** Multi-step sequential approval hierarchies with snapshotted steps and resolved concrete approvers at submission time (`docs/APPROVAL_WORKFLOWS.md`), documented deterministic role resolution policy with optional requester override, database-level unique constraint preventing double decision (`unique(approval_request_step_id)`), strict designated-approver-only authorization (HTTP 403 Forbidden for unauthorized attempts), optimistic concurrency checking (`version` token mapped to HTTP 409 Conflict), terminal rejection (skips remaining steps), and full approval completion.
+> - **Frontend:** Angular 22 standalone with responsive Kanban Board & Table views, transition dropdowns, quick moves, task creation modal with member picker, task detail view with live discussion and audit history timeline, Service Desk list view with tab switcher (All Tickets vs My Tickets), ticket submission modal, rich ticket detail view with internal note warnings and agent tools, and Approvals suite featuring My Inbox, My Submitted Requests, workflow hierarchy previewer, sequential visual stepper, and approver decision actions.
+> - **Verification:** 100% test pass on backend unit tests (160/160), integration tests (41/41), and frontend Vitest suite (57/57). Production build passing with zero warnings.
 
 ## Technology decisions
 

@@ -116,6 +116,156 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.ApprovalDecision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ApprovalRequestStepId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ApproverId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DecidedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovalRequestStepId")
+                        .IsUnique();
+
+                    b.HasIndex("ApproverId");
+
+                    b.ToTable("approval_decisions", (string)null);
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.ApprovalRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CurrentStepOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("RequestNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("RequesterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("SubmittedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
+
+                    b.Property<Guid>("WorkflowDefinitionId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestNumber")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("SubmittedAtUtc");
+
+                    b.HasIndex("WorkflowDefinitionId");
+
+                    b.HasIndex("RequesterId", "Status");
+
+                    b.ToTable("approval_requests", (string)null);
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.ApprovalRequestStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ApprovalRequestId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ApproverUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("StepOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovalRequestId", "StepOrder")
+                        .IsUnique();
+
+                    b.HasIndex("ApproverUserId", "Status");
+
+                    b.ToTable("approval_request_steps", (string)null);
+                });
+
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -508,6 +658,81 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.ToTable("ticket_status_histories", (string)null);
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.WorkflowDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.ToTable("workflow_definitions", (string)null);
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.WorkflowStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApproverRole")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ApproverUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("StepOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("WorkflowDefinitionId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApproverUserId");
+
+                    b.HasIndex("WorkflowDefinitionId", "StepOrder")
+                        .IsUnique();
+
+                    b.ToTable("workflow_steps", (string)null);
+                });
+
             modelBuilder.Entity("WorkFlowPro.Infrastructure.Identity.ApplicationRole", b =>
                 {
                     b.Property<Guid>("Id")
@@ -667,6 +892,57 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.ApprovalDecision", b =>
+                {
+                    b.HasOne("WorkFlowPro.Domain.Entities.ApprovalRequestStep", "Step")
+                        .WithOne("Decision")
+                        .HasForeignKey("WorkFlowPro.Domain.Entities.ApprovalDecision", "ApprovalRequestStepId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ApproverId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Step");
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.ApprovalRequest", b =>
+                {
+                    b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("RequesterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WorkFlowPro.Domain.Entities.WorkflowDefinition", "WorkflowDefinition")
+                        .WithMany()
+                        .HasForeignKey("WorkflowDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("WorkflowDefinition");
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.ApprovalRequestStep", b =>
+                {
+                    b.HasOne("WorkFlowPro.Domain.Entities.ApprovalRequest", "Request")
+                        .WithMany("Steps")
+                        .HasForeignKey("ApprovalRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ApproverUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Request");
+                });
+
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.Project", b =>
                 {
                     b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
@@ -813,6 +1089,41 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.Navigation("Ticket");
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.WorkflowDefinition", b =>
+                {
+                    b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.WorkflowStep", b =>
+                {
+                    b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ApproverUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("WorkFlowPro.Domain.Entities.WorkflowDefinition", "WorkflowDefinition")
+                        .WithMany("Steps")
+                        .HasForeignKey("WorkflowDefinitionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkflowDefinition");
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.ApprovalRequest", b =>
+                {
+                    b.Navigation("Steps");
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.ApprovalRequestStep", b =>
+                {
+                    b.Navigation("Decision");
+                });
+
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.Project", b =>
                 {
                     b.Navigation("Members");
@@ -830,6 +1141,11 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.Navigation("Comments");
 
                     b.Navigation("StatusHistory");
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.WorkflowDefinition", b =>
+                {
+                    b.Navigation("Steps");
                 });
 #pragma warning restore 612, 618
         }

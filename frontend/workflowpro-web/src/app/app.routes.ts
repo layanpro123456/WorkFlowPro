@@ -47,6 +47,14 @@ export const routes: Routes = [
       {
         path: 'tickets/:id',
         loadComponent: () => import('./features/tickets/ticket-detail.component').then(m => m.TicketDetailComponent)
+      },
+      {
+        path: 'approvals',
+        loadComponent: () => import('./features/approvals/approval-list.component').then(m => m.ApprovalListComponent)
+      },
+      {
+        path: 'approvals/:id',
+        loadComponent: () => import('./features/approvals/approval-detail.component').then(m => m.ApprovalDetailComponent)
       }
     ]
   },

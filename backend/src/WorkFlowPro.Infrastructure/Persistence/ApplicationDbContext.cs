@@ -22,6 +22,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
     public DbSet<TicketMessage> TicketMessages => Set<TicketMessage>();
     public DbSet<TicketStatusHistory> TicketStatusHistories => Set<TicketStatusHistory>();
+    public DbSet<WorkflowDefinition> WorkflowDefinitions => Set<WorkflowDefinition>();
+    public DbSet<WorkflowStep> WorkflowSteps => Set<WorkflowStep>();
+    public DbSet<ApprovalRequest> ApprovalRequests => Set<ApprovalRequest>();
+    public DbSet<ApprovalRequestStep> ApprovalRequestSteps => Set<ApprovalRequestStep>();
+    public DbSet<ApprovalDecision> ApprovalDecisions => Set<ApprovalDecision>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -314,6 +319,165 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
             b.HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(h => h.ChangedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<WorkflowDefinition>(b =>
+        {
+            b.ToTable("workflow_definitions");
+            b.HasKey(w => w.Id);
+
+            b.Property(w => w.Name)
+                .HasMaxLength(150)
+                .IsRequired();
+
+            b.Property(w => w.Description);
+
+            b.Property(w => w.IsActive)
+                .IsRequired()
+                .HasDefaultValue(true);
+
+            b.HasIndex(w => w.CreatedById);
+
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(w => w.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasMany(w => w.Steps)
+                .WithOne(s => s.WorkflowDefinition)
+                .HasForeignKey(s => s.WorkflowDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.Navigation(w => w.Steps)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        builder.Entity<WorkflowStep>(b =>
+        {
+            b.ToTable("workflow_steps");
+            b.HasKey(s => s.Id);
+
+            b.Property(s => s.Name)
+                .HasMaxLength(150)
+                .IsRequired();
+
+            b.Property(s => s.StepOrder)
+                .IsRequired();
+
+            b.Property(s => s.ApproverRole)
+                .HasMaxLength(50);
+
+            b.HasIndex(s => new { s.WorkflowDefinitionId, s.StepOrder })
+                .IsUnique();
+
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(s => s.ApproverUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<ApprovalRequest>(b =>
+        {
+            b.ToTable("approval_requests");
+            b.HasKey(r => r.Id);
+
+            b.Property(r => r.RequestNumber)
+                .ValueGeneratedOnAdd();
+
+            b.HasIndex(r => r.RequestNumber)
+                .IsUnique();
+
+            b.Property(r => r.Title)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            b.Property(r => r.Description)
+                .IsRequired();
+
+            b.Property(r => r.Status)
+                .HasMaxLength(20)
+                .IsRequired();
+
+            b.Property(r => r.CurrentStepOrder);
+
+            b.Property(r => r.Version)
+                .IsRequired()
+                .HasDefaultValue(1)
+                .IsConcurrencyToken();
+
+            b.HasIndex(r => new { r.RequesterId, r.Status });
+            b.HasIndex(r => r.Status);
+            b.HasIndex(r => r.SubmittedAtUtc);
+
+            b.HasOne(r => r.WorkflowDefinition)
+                .WithMany()
+                .HasForeignKey(r => r.WorkflowDefinitionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(r => r.RequesterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasMany(r => r.Steps)
+                .WithOne(s => s.Request)
+                .HasForeignKey(s => s.ApprovalRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.Navigation(r => r.Steps)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        builder.Entity<ApprovalRequestStep>(b =>
+        {
+            b.ToTable("approval_request_steps");
+            b.HasKey(s => s.Id);
+
+            b.Property(s => s.StepOrder)
+                .IsRequired();
+
+            b.Property(s => s.Name)
+                .HasMaxLength(150)
+                .IsRequired();
+
+            b.Property(s => s.Status)
+                .HasMaxLength(20)
+                .IsRequired();
+
+            b.HasIndex(s => new { s.ApprovalRequestId, s.StepOrder })
+                .IsUnique();
+
+            b.HasIndex(s => new { s.ApproverUserId, s.Status });
+
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(s => s.ApproverUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasOne(s => s.Decision)
+                .WithOne(d => d.Step)
+                .HasForeignKey<ApprovalDecision>(d => d.ApprovalRequestStepId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ApprovalDecision>(b =>
+        {
+            b.ToTable("approval_decisions");
+            b.HasKey(d => d.Id);
+
+            b.Property(d => d.Decision)
+                .HasMaxLength(20)
+                .IsRequired();
+
+            b.Property(d => d.Comment);
+
+            b.HasIndex(d => d.ApprovalRequestStepId)
+                .IsUnique();
+
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(d => d.ApproverId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

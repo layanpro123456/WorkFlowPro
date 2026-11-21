@@ -18,6 +18,15 @@ erDiagram
     AspNetUsers ||--o{ ticket_messages : "author"
     support_tickets ||--o{ ticket_status_histories : "tracks"
     AspNetUsers ||--o{ ticket_status_histories : "changed by"
+    AspNetUsers ||--o{ workflow_definitions : "creates"
+    workflow_definitions ||--o{ workflow_steps : "contains"
+    AspNetUsers ||--o{ workflow_steps : "approver user"
+    workflow_definitions ||--o{ approval_requests : "instantiates"
+    AspNetUsers ||--o{ approval_requests : "requester"
+    approval_requests ||--o{ approval_request_steps : "contains"
+    AspNetUsers ||--o{ approval_request_steps : "designated approver"
+    approval_request_steps ||--o| approval_decisions : "has decision"
+    AspNetUsers ||--o{ approval_decisions : "decided by"
 
     AspNetUsers {
         uuid Id PK
@@ -143,4 +152,64 @@ erDiagram
         uuid ChangedById FK
         timestamptz ChangedAtUtc
         string Comment
+    }
+
+    workflow_definitions {
+        uuid Id PK
+        string Name
+        string Description
+        boolean IsActive
+        uuid CreatedById FK
+        timestamptz CreatedAtUtc
+        timestamptz UpdatedAtUtc
+    }
+
+    workflow_steps {
+        uuid Id PK
+        uuid WorkflowDefinitionId FK
+        int StepOrder
+        string Name
+        string ApproverRole
+        uuid ApproverUserId FK
+        timestamptz CreatedAtUtc
+        timestamptz UpdatedAtUtc
+    }
+
+    approval_requests {
+        uuid Id PK
+        bigint RequestNumber UK
+        uuid WorkflowDefinitionId FK
+        uuid RequesterId FK
+        string Title
+        string Description
+        string Status
+        int CurrentStepOrder
+        int Version
+        timestamptz SubmittedAtUtc
+        timestamptz CompletedAtUtc
+        timestamptz CreatedAtUtc
+        timestamptz UpdatedAtUtc
+    }
+
+    approval_request_steps {
+        uuid Id PK
+        uuid ApprovalRequestId FK
+        int StepOrder
+        string Name
+        uuid ApproverUserId FK
+        string Status
+        timestamptz DecidedAtUtc
+        timestamptz CreatedAtUtc
+        timestamptz UpdatedAtUtc
+    }
+
+    approval_decisions {
+        uuid Id PK
+        uuid ApprovalRequestStepId UK, FK
+        uuid ApproverId FK
+        string Decision
+        string Comment
+        timestamptz DecidedAtUtc
+        timestamptz CreatedAtUtc
+        timestamptz UpdatedAtUtc
     }

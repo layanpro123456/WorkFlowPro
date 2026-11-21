@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using WorkFlowPro.Application.Features.Approvals.Services;
 using WorkFlowPro.Application.Features.Auth.Services;
 using WorkFlowPro.Application.Features.Projects.Services;
 using WorkFlowPro.Application.Features.Tasks.Services;
@@ -16,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<IProjectAppService, ProjectAppService>();
         services.AddScoped<ITaskAppService, TaskAppService>();
         services.AddScoped<ITicketAppService, TicketAppService>();
+        services.AddScoped<IApprovalAppService, ApprovalAppService>();
 
         return services;
     }

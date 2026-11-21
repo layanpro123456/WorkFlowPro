@@ -99,6 +99,8 @@ public class IdentityService : IIdentityService
 
         var activeUsers = await _userManager.Users
             .Where(u => u.IsActive)
+            .OrderBy(u => u.UserName)
+            .ThenBy(u => u.Id)
             .ToListAsync(cancellationToken);
 
         foreach (var user in activeUsers)
