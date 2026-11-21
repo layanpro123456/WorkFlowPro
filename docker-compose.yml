@@ -1,4 +1,3 @@
-# Initial local PostgreSQL service only. API and frontend services are added in deployment phase.
 services:
   db:
     image: postgres:17-alpine
@@ -7,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-workflowpro}
       POSTGRES_USER: ${POSTGRES_USER:-workflowpro_app}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-workflowpro_secret_change_me}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -17,6 +16,57 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - workflowpro-net
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: workflowpro-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ApplyMigrationsAtStartup: "true"
+      SeedDemoData: ${SEED_DEMO_DATA:-true}
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB:-workflowpro};Username=${POSTGRES_USER:-workflowpro_app};Password=${POSTGRES_PASSWORD:-workflowpro_secret_change_me}"
+      Jwt__Issuer: WorkFlowPro
+      Jwt__Audience: WorkFlowPro.Web
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-WorkFlowPro_Super_Secret_Demo_Key_2026_At_Least_32_Bytes!}
+      AllowedOrigins__0: "http://localhost"
+      AllowedOrigins__1: "http://localhost:4200"
+      AllowedOrigins__2: "http://web"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - workflowpro-net
+
+  web:
+    build:
+      context: ./frontend/workflowpro-web
+      dockerfile: Dockerfile
+    container_name: workflowpro-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    networks:
+      - workflowpro-net
 
 volumes:
   workflowpro-postgres-data:
+
+networks:
+  workflowpro-net:
+    driver: bridge

@@ -109,19 +109,23 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
 // Database initialisation & synthetic seeding in Development / container startup
-if (app.Environment.IsDevelopment())
+var applyMigrations = app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("ApplyMigrationsAtStartup");
+if (applyMigrations)
 {
     using var scope = app.Services.CreateScope();
     var initialiser = scope.ServiceProvider.GetRequiredService<ApplicationDbContextInitialiser>();
     await initialiser.InitialiseAsync();
     await initialiser.SeedAsync();
 
-    app.MapOpenApi();
-    app.MapScalarApiReference(options =>
+    if (app.Environment.IsDevelopment())
     {
-        options.Title = "WorkFlowPro API Reference";
-        options.Theme = ScalarTheme.Purple;
-    });
+        app.MapOpenApi();
+        app.MapScalarApiReference(options =>
+        {
+            options.Title = "WorkFlowPro API Reference";
+            options.Theme = ScalarTheme.Purple;
+        });
+    }
 }
 
 app.UseHttpsRedirection();
