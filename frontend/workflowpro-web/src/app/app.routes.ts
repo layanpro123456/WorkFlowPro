@@ -39,6 +39,14 @@ export const routes: Routes = [
       {
         path: 'tasks/:id',
         loadComponent: () => import('./features/tasks/task-detail.component').then(m => m.TaskDetailComponent)
+      },
+      {
+        path: 'tickets',
+        loadComponent: () => import('./features/tickets/ticket-list.component').then(m => m.TicketListComponent)
+      },
+      {
+        path: 'tickets/:id',
+        loadComponent: () => import('./features/tickets/ticket-detail.component').then(m => m.TicketDetailComponent)
       }
     ]
   },

@@ -85,6 +85,12 @@ public class TicketAppService : ITicketAppService
             relatedProjectId: request.RelatedProjectId
         );
 
+        var maxNumber = await _context.SupportTickets
+            .Select(t => (long?)t.TicketNumber)
+            .MaxAsync(cancellationToken) ?? 1000;
+
+        ticket.AssignTicketNumber(maxNumber + 1);
+
         _context.SupportTickets.Add(ticket);
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -327,7 +333,7 @@ public class TicketAppService : ITicketAppService
         var callerId = RequireCallerId();
         if (!IsAgentOrAdmin())
         {
-            throw new UnauthorizedAccessException("Only support agents, managers, and administrators can assign tickets.");
+            throw new ForbiddenException("Only support agents, managers, and administrators can assign tickets.");
         }
 
         var ticket = await _context.SupportTickets
@@ -408,7 +414,7 @@ public class TicketAppService : ITicketAppService
 
             if (request.Status != TicketStatuses.Closed)
             {
-                throw new UnauthorizedAccessException("Requesters can only transition tickets to 'Closed'.");
+                throw new ForbiddenException("Requesters can only transition tickets to 'Closed'.");
             }
         }
 
@@ -452,7 +458,7 @@ public class TicketAppService : ITicketAppService
         // CRITICAL PRIVACY RULE: Requesters cannot post internal notes
         if (request.IsInternalNote && !isAgent)
         {
-            throw new UnauthorizedAccessException("Requesters cannot create internal notes.");
+            throw new ForbiddenException("Requesters cannot create internal notes.");
         }
 
         var message = ticket.AddMessage(callerId, request.Body, isAgent && request.IsInternalNote);
@@ -563,7 +569,7 @@ public class TicketAppService : ITicketAppService
     {
         if (!IsAgentOrAdmin())
         {
-            throw new UnauthorizedAccessException("Only support agents, managers, and administrators can view assignees.");
+            throw new ForbiddenException("Only support agents, managers, and administrators can view assignees.");
         }
 
         var agents = await _identityService.GetUsersInRolesAsync(AgentRoles, cancellationToken);

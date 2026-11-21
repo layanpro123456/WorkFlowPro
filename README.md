@@ -4,13 +4,14 @@
 
 WorkFlowPro is a portfolio project intended to demonstrate practical full-stack enterprise application engineering with ASP.NET Core 10, Angular, PostgreSQL, automated testing and containerized deployment.
 
-> **Project status:** Phase 3 (Tasks, Concurrency, and Workflow History) completed and verified.
+> **Project status:** Phase 4 (Service Desk, Internal Note Privacy, and Lifecycle Auditing) completed and verified.
 > 
 > - **Backend:** .NET 9 (`net9.0`) Clean Architecture with ASP.NET Core Identity & EF Core Npgsql migrations.
 > - **Projects & Membership:** Project lifecycle and member management (Owner, Manager, Member) with resource concealment for unauthorized access.
 > - **Tasks & Workflow:** Complete task lifecycle (`Backlog`, `ToDo`, `InProgress`, `Blocked`, `Done`, `Cancelled`) with documented transition matrix (`docs/TASK_TRANSITIONS.md`), optimistic concurrency (`version` token mapped to HTTP 409 Conflict), active-member assignee validation, threaded comments, and immutable status audit history.
-> - **Frontend:** Angular 22 standalone with responsive Kanban Board & Table views, transition dropdowns, quick moves, task creation modal with member picker, task detail view with live discussion and audit history timeline.
-> - **Verification:** 100% test pass on backend unit tests (87/87), integration tests (26/26), and frontend Vitest suite (26/26). Production build passing with zero warnings.
+> - **Service Desk & Internal Notes Privacy:** End-to-end support ticket system with ticket lifecycle (`New`, `Assigned`, `InProgress`, `WaitingForRequester`, `Resolved`, `Closed`), sequential human-friendly ticket numbers (`#1001+`), strict internal notes privacy (internal notes filtered out at data layer for requesters; requesters strictly forbidden from creating internal notes mapped to HTTP 403 Forbidden), agent-only assignment and assignee listings, and audit history.
+> - **Frontend:** Angular 22 standalone with responsive Kanban Board & Table views, transition dropdowns, quick moves, task creation modal with member picker, task detail view with live discussion and audit history timeline, Service Desk list view with tab switcher (All Tickets vs My Tickets), ticket submission modal, and rich ticket detail view with internal note warnings and agent tools.
+> - **Verification:** 100% test pass on backend unit tests (139/139), integration tests (35/35), and frontend Vitest suite (42/42). Production build passing with zero warnings.
 
 ## Technology decisions
 

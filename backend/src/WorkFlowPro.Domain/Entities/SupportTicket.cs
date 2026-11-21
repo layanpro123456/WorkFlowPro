@@ -63,6 +63,14 @@ public class SupportTicket : BaseEntity
         ));
     }
 
+    public void AssignTicketNumber(long ticketNumber)
+    {
+        if (TicketNumber == 0 && ticketNumber > 0)
+        {
+            TicketNumber = ticketNumber;
+        }
+    }
+
     public TicketStatusHistory? Assign(Guid assigneeId, Guid assignedById, string? comment = null)
     {
         if (assigneeId == Guid.Empty) throw new ArgumentException("AssigneeId cannot be empty.", nameof(assigneeId));

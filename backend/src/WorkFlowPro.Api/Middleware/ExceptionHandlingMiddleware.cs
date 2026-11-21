@@ -65,6 +65,17 @@ public class ExceptionHandlingMiddleware
                 };
                 break;
 
+            case ForbiddenException forbiddenException:
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                problemDetails = new ProblemDetails
+                {
+                    Status = StatusCodes.Status403Forbidden,
+                    Title = "Forbidden",
+                    Detail = forbiddenException.Message,
+                    Instance = context.Request.Path
+                };
+                break;
+
             case KeyNotFoundException notFoundException:
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
                 problemDetails = new ProblemDetails
