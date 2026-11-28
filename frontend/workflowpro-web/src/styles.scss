@@ -1,1 +1,67 @@
 /* You can add global styles to this file, and also import other style files */
+
+.status-inreview { background: #ede9fe; color: #5b21b6; }
+.card-git-badges { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.git-pr-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-decoration: none;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+}
+.git-pr-pill.compact-pill { margin-left: 0.5rem; }
+.pr-state-open { background: #dcfce7; border-color: #86efac; color: #166534; }
+.pr-state-draft { background: #f1f5f9; border-color: #cbd5e1; color: #475569; }
+.pr-state-merged { background: #f3e8ff; border-color: #d8b4fe; color: #6b21a8; }
+.pr-state-closed { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
+.ci-badge { font-weight: 700; }
+.ci-pass { color: #15803d; }
+.ci-fail { color: #dc2626; }
+.ci-pending { color: #b45309; }
+.git-branch-pill {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  font-family: monospace;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  text-decoration: none;
+}
+.git-actions-row { display: flex; gap: 0.5rem; }
+.btn-git-primary { background: #0f172a; color: #fff; border: none; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+.btn-git-secondary { background: #f8fafc; color: #1e293b; border: 1px solid #cbd5e1; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+.git-subsection { margin-top: 1rem; }
+.git-subsection h3 { font-size: 0.9rem; color: #475569; margin: 0 0 0.6rem; }
+.git-list { display: flex; flex-direction: column; gap: 0.65rem; }
+.git-item { display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 0.85rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; gap: 0.75rem; }
+.git-item-main { display: flex; flex-direction: column; gap: 0.15rem; }
+.branch-name-link { font-family: monospace; font-size: 0.85rem; color: #1d4ed8; font-weight: 600; text-decoration: none; }
+.branch-name-link:hover { text-decoration: underline; }
+.git-submeta { font-size: 0.75rem; color: #64748b; }
+.btn-copy-sm { background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0.25rem 0.6rem; font-size: 0.75rem; cursor: pointer; color: #334155; }
+.pr-item { padding: 0.85rem; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; display: flex; flex-direction: column; gap: 0.5rem; }
+.pr-item-top { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.pr-title-group { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.pr-link { font-weight: 600; color: #0f172a; text-decoration: none; font-size: 0.92rem; }
+.pr-link:hover { color: #2563eb; text-decoration: underline; }
+.pr-state-badge { font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+.pr-meta-row { display: flex; flex-wrap: wrap; gap: 0.6rem; font-size: 0.75rem; color: #475569; align-items: center; }
+.branch-chip { font-family: monospace; background: #e2e8f0; padding: 1px 6px; border-radius: 4px; }
+.review-chip, .check-chip { font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #fff; border: 1px solid #cbd5e1; }
+.rev-approved, .chk-success { color: #15803d; border-color: #86efac; }
+.rev-changesrequested, .chk-failure { color: #b91c1c; border-color: #fca5a5; }
+.diff-stats { font-family: monospace; color: #64748b; }
+.btn-unlink { background: transparent; border: 1px solid #fecaca; color: #b91c1c; border-radius: 4px; padding: 2px 7px; font-size: 0.72rem; cursor: pointer; }
+

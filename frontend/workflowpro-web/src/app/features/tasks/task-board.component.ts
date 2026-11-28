@@ -801,52 +801,9 @@ import {
     .status-backlog { background: #f1f5f9; color: #475569; }
     .status-todo { background: #e0e7ff; color: #3730a3; }
     .status-inprogress { background: #fef3c7; color: #92400e; }
-    .status-inreview { background: #ede9fe; color: #5b21b6; }
     .status-blocked { background: #fee2e2; color: #991b1b; }
     .status-done { background: #dcfce7; color: #166534; }
     .status-cancelled { background: #e2e8f0; color: #64748b; }
-    .card-git-badges {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35rem;
-    }
-    .git-pr-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      font-size: 0.7rem;
-      font-weight: 600;
-      padding: 2px 6px;
-      border-radius: 4px;
-      text-decoration: none;
-      border: 1px solid #cbd5e1;
-      background: #f8fafc;
-      color: #0f172a;
-    }
-    .git-pr-pill.compact-pill { margin-left: 0.5rem; }
-    .pr-state-open { background: #dcfce7; border-color: #86efac; color: #166534; }
-    .pr-state-draft { background: #f1f5f9; border-color: #cbd5e1; color: #475569; }
-    .pr-state-merged { background: #f3e8ff; border-color: #d8b4fe; color: #6b21a8; }
-    .pr-state-closed { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
-    .ci-badge { font-weight: 700; }
-    .ci-pass { color: #15803d; }
-    .ci-fail { color: #dc2626; }
-    .ci-pending { color: #b45309; }
-    .git-branch-pill {
-      display: inline-block;
-      max-width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-size: 0.68rem;
-      font-family: monospace;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: #eff6ff;
-      color: #1d4ed8;
-      border: 1px solid #bfdbfe;
-      text-decoration: none;
-    }
     .card-right-actions {
       display: flex;
       align-items: center;
