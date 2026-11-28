@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 import { TaskDetailComponent } from './task-detail.component';
 import { TaskService } from '../../core/tasks/task.service';
 import { ProjectService } from '../../core/projects/project.service';
+import { GitService } from '../../core/git/git.service';
 import { TaskDetail } from '../../core/tasks/task.models';
 
 describe('TaskDetailComponent', () => {
@@ -14,12 +15,15 @@ describe('TaskDetailComponent', () => {
   let fixture: ComponentFixture<TaskDetailComponent>;
   let taskService: TaskService;
   let projectService: ProjectService;
+  let gitService: GitService;
 
   const mockDetail: TaskDetail = {
     id: 'task-100',
     projectId: 'proj-1',
     projectCode: 'WFP',
     projectName: 'WorkFlowPro',
+    taskNumber: 1,
+    taskKey: 'WFP-1',
     title: 'Design API Specs',
     description: 'Detailed OpenAPI specs',
     status: 'ToDo',
@@ -80,6 +84,9 @@ describe('TaskDetailComponent', () => {
     component = fixture.componentInstance;
     taskService = TestBed.inject(TaskService);
     projectService = TestBed.inject(ProjectService);
+    gitService = TestBed.inject(GitService);
+    vi.spyOn(gitService, 'listProjectRepositories').mockReturnValue(of([]));
+    vi.spyOn(gitService, 'listProjectPullRequests').mockReturnValue(of([]));
   });
 
   it('loads task detail and renders attributes on init', () => {

@@ -5,6 +5,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ProjectService } from '../../core/projects/project.service';
 import { ProjectMember, ProjectSummary } from '../../core/projects/project.models';
 import { TaskService } from '../../core/tasks/task.service';
+import { GitService } from '../../core/git/git.service';
+import { ProjectGitRepository } from '../../core/git/git.models';
 import {
   ALLOWED_TASK_TRANSITIONS,
   CreateTaskRequest,
@@ -95,6 +97,18 @@ import {
           </select>
         </div>
 
+        <div class="filter-group">
+          <label for="pr-filter">Pull Request</label>
+          <select id="pr-filter" [(ngModel)]="prFilter" (change)="loadTasks()">
+            <option value="All">All Cards</option>
+            <option value="HasPr">Has Linked PR</option>
+            <option value="Open">Open PR</option>
+            <option value="Draft">Draft PR</option>
+            <option value="Merged">Merged PR</option>
+            <option value="ChecksFailing">Checks Failing</option>
+          </select>
+        </div>
+
         <div class="filter-actions">
           <button class="filter-btn" (click)="loadTasks()">Filter</button>
           <button class="reset-btn" (click)="resetFilters()">Reset</button>
@@ -140,7 +154,7 @@ import {
                 @for (task of getTasksForStatus(column); track task.id) {
                   <article class="task-card" [class]="'priority-' + task.priority.toLowerCase()">
                     <div class="card-meta">
-                      <span class="project-tag">{{ task.projectCode }}</span>
+                      <span class="project-tag">{{ task.taskKey || task.projectCode }}</span>
                       <span class="priority-tag" [class]="'tag-' + task.priority.toLowerCase()">
                         {{ task.priority }}
                       </span>
@@ -149,6 +163,40 @@ import {
                     <h3 class="task-title">
                       <a [routerLink]="['/tasks', task.id]">{{ task.title }}</a>
                     </h3>
+
+                    @if (task.gitSummary; as git) {
+                      <div class="card-git-badges">
+                        @if (git.primaryPrNumber) {
+                          <a
+                            [href]="git.primaryPrUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="git-pr-pill"
+                            [class]="'pr-state-' + (git.primaryPrState || 'open').toLowerCase()"
+                            [title]="'PR #' + git.primaryPrNumber + ' (' + git.primaryPrState + ')'">
+                            <span>PR #{{ git.primaryPrNumber }}</span>
+                            <span class="pr-state-dot">{{ git.primaryPrState }}</span>
+                            @if (git.primaryPrCheckStatus === 'Success') {
+                              <span class="ci-badge ci-pass" title="Checks passed">✓</span>
+                            } @else if (git.primaryPrCheckStatus === 'Failure') {
+                              <span class="ci-badge ci-fail" title="Checks failed">✗</span>
+                            } @else if (git.primaryPrCheckStatus === 'Pending') {
+                              <span class="ci-badge ci-pending" title="Checks running">⏳</span>
+                            }
+                          </a>
+                        }
+                        @if (git.primaryBranchName) {
+                          <a
+                            [href]="git.primaryBranchUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="git-branch-pill"
+                            [title]="git.primaryBranchName">
+                            🌿 {{ git.primaryBranchName }}
+                          </a>
+                        }
+                      </div>
+                    }
 
                     <div class="task-info">
                       <div class="info-row">
@@ -190,7 +238,18 @@ import {
                       } @else {
                         <span class="terminal-status">Final State</span>
                       }
-                      <span class="version-tag" title="Optimistic concurrency version">v{{ task.version }}</span>
+                      <div class="card-right-actions">
+                        @if (projectRepos().length > 0) {
+                          <button
+                            type="button"
+                            class="branch-mini-btn"
+                            title="Create Git branch for this card"
+                            (click)="openCreateBranchModal(task)">
+                            🌿+
+                          </button>
+                        }
+                        <span class="version-tag" title="Optimistic concurrency version">v{{ task.version }}</span>
+                      </div>
                     </div>
                   </article>
                 } @empty {
@@ -220,9 +279,18 @@ import {
             <tbody>
               @for (task of tasks(); track task.id) {
                 <tr>
-                  <td><span class="project-tag">{{ task.projectCode }}</span></td>
+                  <td><span class="project-tag">{{ task.taskKey || task.projectCode }}</span></td>
                   <td class="task-title-cell">
                     <a [routerLink]="['/tasks', task.id]" class="table-title-link">{{ task.title }}</a>
+                    @if (task.gitSummary?.primaryPrNumber) {
+                      <a
+                        [href]="task.gitSummary!.primaryPrUrl"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="git-pr-pill compact-pill">
+                        PR #{{ task.gitSummary!.primaryPrNumber }} ({{ task.gitSummary!.primaryPrState }})
+                      </a>
+                    }
                   </td>
                   <td>
                     <span class="status-pill" [class]="'status-' + task.status.toLowerCase()">
@@ -348,6 +416,62 @@ import {
                 <button type="button" class="btn-cancel" (click)="closeCreateModal()">Cancel</button>
                 <button type="submit" class="primary-btn" [disabled]="isSubmitting()">
                   {{ isSubmitting() ? 'Creating...' : 'Create Task' }}
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      }
+
+      <!-- Create Branch Modal -->
+      @if (showBranchModal() && branchTargetTask(); as targetTask) {
+        <div class="modal-backdrop" (click)="closeCreateBranchModal()">
+          <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="branch-modal-title">
+            <header class="modal-header">
+              <h2 id="branch-modal-title">Create Git Branch ({{ targetTask.taskKey || targetTask.projectCode }})</h2>
+              <button class="modal-close" (click)="closeCreateBranchModal()">✕</button>
+            </header>
+
+            <form (ngSubmit)="onCreateBranch()" class="modal-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="branch-repo">Repository</label>
+                  <select id="branch-repo" [(ngModel)]="branchModel.repositoryId" name="repoId" (change)="onBranchRepoChanged()">
+                    @for (repo of projectRepos(); track repo.id) {
+                      <option [value]="repo.id">{{ repo.repositoryFullName }}</option>
+                    }
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="branch-prefix">Prefix</label>
+                  <select id="branch-prefix" [(ngModel)]="branchModel.branchPrefix" name="branchPrefix" (change)="refreshSuggestedBranchName()">
+                    <option value="feat">feat</option>
+                    <option value="fix">fix</option>
+                    <option value="chore">chore</option>
+                    <option value="refactor">refactor</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="branch-base">Base Branch</label>
+                <input id="branch-base" type="text" [(ngModel)]="branchModel.baseBranch" name="baseBranch" required />
+              </div>
+
+              <div class="form-group">
+                <label for="branch-name">Branch Name</label>
+                <input id="branch-name" type="text" [(ngModel)]="branchModel.branchName" name="branchName" required />
+              </div>
+
+              @if (branchModalError()) {
+                <div class="modal-error">{{ branchModalError() }}</div>
+              }
+
+              <footer class="modal-footer">
+                <button type="button" class="btn-cancel" (click)="closeCreateBranchModal()">Cancel</button>
+                <button type="submit" class="primary-btn" [disabled]="isCreatingBranch()">
+                  {{ isCreatingBranch() ? 'Creating Branch...' : 'Create Branch' }}
                 </button>
               </footer>
             </form>
@@ -677,9 +801,67 @@ import {
     .status-backlog { background: #f1f5f9; color: #475569; }
     .status-todo { background: #e0e7ff; color: #3730a3; }
     .status-inprogress { background: #fef3c7; color: #92400e; }
+    .status-inreview { background: #ede9fe; color: #5b21b6; }
     .status-blocked { background: #fee2e2; color: #991b1b; }
     .status-done { background: #dcfce7; color: #166534; }
     .status-cancelled { background: #e2e8f0; color: #64748b; }
+    .card-git-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .git-pr-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-decoration: none;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .git-pr-pill.compact-pill { margin-left: 0.5rem; }
+    .pr-state-open { background: #dcfce7; border-color: #86efac; color: #166534; }
+    .pr-state-draft { background: #f1f5f9; border-color: #cbd5e1; color: #475569; }
+    .pr-state-merged { background: #f3e8ff; border-color: #d8b4fe; color: #6b21a8; }
+    .pr-state-closed { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
+    .ci-badge { font-weight: 700; }
+    .ci-pass { color: #15803d; }
+    .ci-fail { color: #dc2626; }
+    .ci-pending { color: #b45309; }
+    .git-branch-pill {
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.68rem;
+      font-family: monospace;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      text-decoration: none;
+    }
+    .card-right-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .branch-mini-btn {
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      color: #1e293b;
+    }
+    .branch-mini-btn:hover { background: #e0f2fe; border-color: #7dd3fc; }
     .table-actions {
       display: flex;
       align-items: center;
@@ -792,17 +974,19 @@ import {
 export class TaskBoardComponent implements OnInit {
   private readonly projectService = inject(ProjectService);
   private readonly taskService = inject(TaskService);
+  private readonly gitService = inject(GitService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   readonly taskStatuses = TASK_STATUSES;
   readonly taskPriorities = TASK_PRIORITIES;
-  readonly boardColumns: TaskStatus[] = ['Backlog', 'ToDo', 'InProgress', 'Blocked', 'Done', 'Cancelled'];
+  readonly boardColumns: TaskStatus[] = ['Backlog', 'ToDo', 'InProgress', 'InReview', 'Blocked', 'Done', 'Cancelled'];
 
   activeView = signal<'board' | 'list'>('board');
   projects = signal<ProjectSummary[]>([]);
   selectedProjectId = signal<string>('');
   projectMembers = signal<ProjectMember[]>([]);
+  projectRepos = signal<ProjectGitRepository[]>([]);
   tasks = signal<TaskSummary[]>([]);
   isLoading = signal<boolean>(false);
   isTransitioning = signal<string | null>(null);
@@ -812,6 +996,7 @@ export class TaskBoardComponent implements OnInit {
   searchQuery = '';
   statusFilter = 'All';
   priorityFilter = 'All';
+  prFilter = 'All';
 
   // Modal State
   showCreateModal = signal<boolean>(false);
@@ -825,6 +1010,18 @@ export class TaskBoardComponent implements OnInit {
     estimateMinutes: null
   };
   createModelDueDate = '';
+
+  // Create Branch Modal State
+  showBranchModal = signal<boolean>(false);
+  branchTargetTask = signal<TaskSummary | null>(null);
+  isCreatingBranch = signal<boolean>(false);
+  branchModalError = signal<string>('');
+  branchModel = {
+    repositoryId: '',
+    branchPrefix: 'feat',
+    baseBranch: 'main',
+    branchName: ''
+  };
 
   ngOnInit(): void {
     this.loadProjects();
@@ -843,6 +1040,7 @@ export class TaskBoardComponent implements OnInit {
 
         if (this.selectedProjectId()) {
           this.loadProjectMembers(this.selectedProjectId());
+          this.loadProjectRepos(this.selectedProjectId());
           this.loadTasks();
         }
       },
@@ -855,6 +1053,7 @@ export class TaskBoardComponent implements OnInit {
   onProjectSelected(projectId: string): void {
     this.selectedProjectId.set(projectId);
     this.loadProjectMembers(projectId);
+    this.loadProjectRepos(projectId);
     this.loadTasks();
   }
 
@@ -862,6 +1061,13 @@ export class TaskBoardComponent implements OnInit {
     this.projectService.getMembers(projectId).subscribe({
       next: (members) => this.projectMembers.set(members),
       error: () => this.projectMembers.set([])
+    });
+  }
+
+  loadProjectRepos(projectId: string): void {
+    this.gitService.listProjectRepositories(projectId).subscribe({
+      next: (repos) => this.projectRepos.set(repos.filter(r => r.isActive)),
+      error: () => this.projectRepos.set([])
     });
   }
 
@@ -876,6 +1082,7 @@ export class TaskBoardComponent implements OnInit {
       status: this.statusFilter !== 'All' ? this.statusFilter : undefined,
       priority: this.priorityFilter !== 'All' ? this.priorityFilter : undefined,
       search: this.searchQuery.trim() || undefined,
+      prState: this.prFilter !== 'All' ? this.prFilter : undefined,
       page: 1,
       pageSize: 100
     }).subscribe({
@@ -894,6 +1101,7 @@ export class TaskBoardComponent implements OnInit {
     this.searchQuery = '';
     this.statusFilter = 'All';
     this.priorityFilter = 'All';
+    this.prFilter = 'All';
     this.loadTasks();
   }
 
@@ -983,5 +1191,76 @@ export class TaskBoardComponent implements OnInit {
         this.isSubmitting.set(false);
       }
     });
+  }
+
+  openCreateBranchModal(task: TaskSummary): void {
+    const defaultRepo = this.projectRepos().find(r => r.isDefault) ?? this.projectRepos()[0];
+    if (!defaultRepo) return;
+
+    this.branchTargetTask.set(task);
+    this.branchModalError.set('');
+    this.branchModel = {
+      repositoryId: defaultRepo.id,
+      branchPrefix: 'feat',
+      baseBranch: defaultRepo.defaultBranch,
+      branchName: this.buildBranchSlug(task, 'feat')
+    };
+    this.showBranchModal.set(true);
+  }
+
+  closeCreateBranchModal(): void {
+    this.showBranchModal.set(false);
+    this.branchTargetTask.set(null);
+    this.branchModalError.set('');
+  }
+
+  onBranchRepoChanged(): void {
+    const repo = this.projectRepos().find(r => r.id === this.branchModel.repositoryId);
+    if (repo) {
+      this.branchModel.baseBranch = repo.defaultBranch;
+    }
+  }
+
+  refreshSuggestedBranchName(): void {
+    const task = this.branchTargetTask();
+    if (!task) return;
+    this.branchModel.branchName = this.buildBranchSlug(task, this.branchModel.branchPrefix);
+  }
+
+  onCreateBranch(): void {
+    const task = this.branchTargetTask();
+    if (!task) return;
+
+    this.isCreatingBranch.set(true);
+    this.branchModalError.set('');
+
+    this.gitService.createTaskBranch(task.id, {
+      repositoryId: this.branchModel.repositoryId || undefined,
+      branchPrefix: this.branchModel.branchPrefix,
+      baseBranch: this.branchModel.baseBranch.trim() || undefined,
+      branchName: this.branchModel.branchName.trim() || undefined
+    }).subscribe({
+      next: (branch) => {
+        this.isCreatingBranch.set(false);
+        this.closeCreateBranchModal();
+        this.successMessage.set(`Branch "${branch.branchName}" created for ${task.taskKey || task.title}.`);
+        this.loadTasks();
+      },
+      error: (err) => {
+        this.branchModalError.set(err.error?.detail || 'Failed to create Git branch.');
+        this.isCreatingBranch.set(false);
+      }
+    });
+  }
+
+  private buildBranchSlug(task: TaskSummary, prefix: string): string {
+    const key = (task.taskKey || task.projectCode || 'TASK').toUpperCase();
+    const slug = task.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 45)
+      .replace(/-+$/, '');
+    return slug ? `${prefix}/${key}-${slug}` : `${prefix}/${key}`;
   }
 }

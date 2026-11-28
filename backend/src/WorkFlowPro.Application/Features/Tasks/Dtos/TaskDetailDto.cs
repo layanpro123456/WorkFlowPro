@@ -1,3 +1,5 @@
+using WorkFlowPro.Application.Features.Git.Dtos;
+
 namespace WorkFlowPro.Application.Features.Tasks.Dtos;
 
 public record TaskDetailDto(
@@ -19,5 +21,9 @@ public record TaskDetailDto(
     DateTime CreatedAtUtc,
     DateTime? UpdatedAtUtc,
     IReadOnlyList<TaskCommentDto> Comments,
-    IReadOnlyList<TaskStatusHistoryDto> History
+    IReadOnlyList<TaskStatusHistoryDto> History,
+    int TaskNumber = 0,
+    string TaskKey = "",
+    IReadOnlyList<TaskGitBranchDto>? Branches = null,
+    IReadOnlyList<TaskPullRequestDto>? PullRequests = null
 );

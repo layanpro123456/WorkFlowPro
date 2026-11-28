@@ -272,4 +272,10 @@ public class IdentityService : IIdentityService
         var roles = await _roleManager.Roles.Select(r => r.Name!).ToListAsync(cancellationToken);
         return roles.Count > 0 ? roles : Domain.Constants.Roles.All;
     }
+
+    public async Task<Guid?> FindUserIdByEmailAsync(string email, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        return user?.Id;
+    }
 }

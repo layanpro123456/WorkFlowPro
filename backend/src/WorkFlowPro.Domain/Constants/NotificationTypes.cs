@@ -12,4 +12,9 @@ public static class NotificationTypes
     public const string ApprovalCompleted = "ApprovalCompleted";
     public const string ApprovalRejected = "ApprovalRejected";
     public const string ApprovalCancelled = "ApprovalCancelled";
+
+    public const string PullRequestOpened = "PullRequestOpened";
+    public const string PullRequestMerged = "PullRequestMerged";
+    public const string PullRequestChangesRequested = "PullRequestChangesRequested";
+    public const string PullRequestChecksFailed = "PullRequestChecksFailed";
 }

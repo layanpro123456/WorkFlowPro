@@ -30,10 +30,11 @@ public class TasksController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] string? prState = null,
         CancellationToken cancellationToken = default)
     {
         var result = await _taskService.GetProjectTasksAsync(
-            projectId, status, priority, assigneeId, search, page, pageSize, cancellationToken);
+            projectId, status, priority, assigneeId, search, page, pageSize, cancellationToken, prState);
 
         return Ok(result);
     }

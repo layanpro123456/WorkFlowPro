@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using WorkFlowPro.Application.Common.Interfaces;
+using WorkFlowPro.Infrastructure.Git;
 using WorkFlowPro.Infrastructure.Identity;
 using WorkFlowPro.Infrastructure.Persistence;
 using WorkFlowPro.Infrastructure.Services;
@@ -53,6 +55,20 @@ public static class DependencyInjection
         services.AddTransient<IIdentityService, IdentityService>();
         services.AddTransient<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IAuditService, AuditService>();
+
+        var dataProtectionBuilder = services.AddDataProtection()
+            .SetApplicationName("WorkFlowPro");
+        var keysDir = configuration["DataProtection:KeysDirectory"];
+        if (!string.IsNullOrWhiteSpace(keysDir))
+        {
+            dataProtectionBuilder.PersistKeysToFileSystem(new DirectoryInfo(keysDir));
+        }
+
+        services.AddSingleton<IGitSecretProtector, GitSecretProtector>();
+        services.AddHttpClient<IGitProviderClient, GitHubProviderClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
 
         return services;
     }

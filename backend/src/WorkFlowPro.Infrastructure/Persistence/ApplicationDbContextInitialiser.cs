@@ -105,6 +105,46 @@ public class ApplicationDbContextInitialiser
             }
         }
 
+        // 2b. Seed inactive system automation actor for Git/PR status transitions
+        const string automationEmail = "git-automation@workflowpro.local";
+        if (await _userManager.FindByEmailAsync(automationEmail) == null)
+        {
+            var botUser = new ApplicationUser
+            {
+                UserName = automationEmail,
+                Email = automationEmail,
+                DisplayName = "Git Automation",
+                IsActive = false,
+                EmailConfirmed = true,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+            await _userManager.CreateAsync(botUser, $"GitBot!{Guid.NewGuid():N}");
+        }
+
+        // 2c. Backfill sequential TaskNumber / TaskKey for any legacy tasks
+        var unkeyedTasks = await _context.Tasks
+            .Include(t => t.Project)
+            .Where(t => t.TaskNumber == 0 && t.Project != null)
+            .OrderBy(t => t.CreatedAtUtc)
+            .ToListAsync();
+
+        if (unkeyedTasks.Count > 0)
+        {
+            var maxByProject = await _context.Tasks
+                .Where(t => t.TaskNumber > 0)
+                .GroupBy(t => t.ProjectId)
+                .Select(g => new { ProjectId = g.Key, MaxNumber = g.Max(t => t.TaskNumber) })
+                .ToDictionaryAsync(x => x.ProjectId, x => x.MaxNumber);
+
+            foreach (var task in unkeyedTasks)
+            {
+                var next = maxByProject.GetValueOrDefault(task.ProjectId, 0) + 1;
+                maxByProject[task.ProjectId] = next;
+                task.AssignTaskKey(next, task.Project!.ProjectCode);
+            }
+            await _context.SaveChangesAsync();
+        }
+
         // 3. Seed synthetic demo data if explicitly configured (e.g. Docker demo deployment)
         var shouldSeedDemo = _configuration.GetValue<bool>("SeedDemoData", false);
         if (shouldSeedDemo && adminUser != null)
@@ -152,18 +192,66 @@ public class ApplicationDbContextInitialiser
         if (!await _context.Tasks.AnyAsync(t => t.ProjectId == prjAlpha.Id))
         {
             var task1 = new TaskItem(prjAlpha.Id, "Setup Terraform infrastructure", "Initial cloud infrastructure", adminUser.Id, TaskPriorities.High, employee1.Id, DateTime.UtcNow.AddDays(5), 180, TaskStatuses.Done);
+            task1.AssignTaskKey(1, prjAlpha.ProjectCode);
             task1.AddComment(adminUser.Id, "Terraform cloud state bucket is configured.");
 
             var task2 = new TaskItem(prjAlpha.Id, "Migrate PostgreSQL database to RDS", "Zero-downtime replication setup", manager.Id, TaskPriorities.Urgent, employee1.Id, DateTime.UtcNow.AddDays(2), 240, TaskStatuses.InProgress);
+            task2.AssignTaskKey(2, prjAlpha.ProjectCode);
             task2.AddComment(employee1.Id, "Executing pg_dump snapshot right now.");
 
             var task3 = new TaskItem(prjAlpha.Id, "Implement JWT rotation in API gateway", "Token rotation security", manager.Id, TaskPriorities.High, employee2.Id, DateTime.UtcNow.AddDays(7), 120, TaskStatuses.ToDo);
+            task3.AssignTaskKey(3, prjAlpha.ProjectCode);
 
             var task4 = new TaskItem(prjAlpha.Id, "Audit container security vulnerabilities", "Security scanning", adminUser.Id, TaskPriorities.Urgent, employee1.Id, DateTime.UtcNow.AddDays(-1), 90, TaskStatuses.Blocked);
+            task4.AssignTaskKey(4, prjAlpha.ProjectCode);
             task4.AddComment(employee1.Id, "Awaiting approval for base image upgrade.");
 
             _context.Tasks.AddRange(task1, task2, task3, task4);
             await _context.SaveChangesAsync();
+
+            // Seed Demo Git Repository & Linked Branch/PR
+            if (!await _context.ProjectGitRepositories.AnyAsync(r => r.ProjectId == prjAlpha.Id))
+            {
+                var demoRepo = new ProjectGitRepository(
+                    prjAlpha.Id,
+                    GitProviders.GitHub,
+                    "layanpro123456",
+                    "WorkFlowPro",
+                    "main",
+                    manager.Id);
+                _context.ProjectGitRepositories.Add(demoRepo);
+
+                var demoBranch = new TaskGitBranch(
+                    task2.Id,
+                    demoRepo.Id,
+                    "feat/PRJ-ALPHA-2-rds-replication",
+                    "main",
+                    demoRepo.BuildBranchWebUrl("feat/PRJ-ALPHA-2-rds-replication"),
+                    employee1.Id);
+                _context.TaskGitBranches.Add(demoBranch);
+
+                var demoPr = new GitPullRequest(
+                    repositoryId: demoRepo.Id,
+                    externalPrId: 10042,
+                    prNumber: 42,
+                    title: "feat(PRJ-ALPHA-2): Zero-downtime PostgreSQL RDS replication",
+                    body: "Implements read-replica cutover scripts for PRJ-ALPHA-2.",
+                    state: PullRequestStates.Open,
+                    sourceBranch: "feat/PRJ-ALPHA-2-rds-replication",
+                    targetBranch: "main",
+                    authorLogin: "davidchen",
+                    htmlUrl: "https://github.com/layanpro123456/WorkFlowPro/pull/42",
+                    openedAtUtc: DateTime.UtcNow.AddHours(-6),
+                    reviewStatus: PullRequestReviewStatuses.Approved,
+                    checkStatus: PullRequestCheckStatuses.Success,
+                    commitsCount: 4,
+                    additions: 184,
+                    deletions: 27);
+                _context.GitPullRequests.Add(demoPr);
+
+                _context.TaskPullRequestLinks.Add(new TaskPullRequestLink(task2.Id, demoPr.Id, TaskPullRequestLinkSources.AutoBranch));
+                await _context.SaveChangesAsync();
+            }
         }
 
         // Seed Demo Tickets

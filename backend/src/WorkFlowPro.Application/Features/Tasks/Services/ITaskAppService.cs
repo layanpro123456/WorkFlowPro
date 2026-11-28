@@ -18,7 +18,8 @@ public interface ITaskAppService
         string? search,
         int page,
         int pageSize,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        string? prState = null);
 
     Task<TaskDetailDto> GetByIdAsync(
         Guid taskId,

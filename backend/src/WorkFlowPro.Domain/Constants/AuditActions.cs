@@ -24,4 +24,12 @@ public static class AuditActions
     public const string ApprovalSubmitted = "ApprovalSubmitted";
     public const string ApprovalDecided = "ApprovalDecided";
     public const string ApprovalCancelled = "ApprovalCancelled";
+
+    public const string GitRepositoryConnected = "GitRepositoryConnected";
+    public const string GitRepositoryUpdated = "GitRepositoryUpdated";
+    public const string GitRepositoryDisconnected = "GitRepositoryDisconnected";
+    public const string GitBranchCreated = "GitBranchCreated";
+    public const string GitPullRequestLinked = "GitPullRequestLinked";
+    public const string GitPullRequestUnlinked = "GitPullRequestUnlinked";
+    public const string GitWebhookProcessed = "GitWebhookProcessed";
 }

@@ -29,6 +29,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<ApprovalDecision> ApprovalDecisions => Set<ApprovalDecision>();
     public DbSet<InAppNotification> Notifications => Set<InAppNotification>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<ProjectGitRepository> ProjectGitRepositories => Set<ProjectGitRepository>();
+    public DbSet<TaskGitBranch> TaskGitBranches => Set<TaskGitBranch>();
+    public DbSet<GitPullRequest> GitPullRequests => Set<GitPullRequest>();
+    public DbSet<TaskPullRequestLink> TaskPullRequestLinks => Set<TaskPullRequestLink>();
+    public DbSet<GitWebhookDelivery> GitWebhookDeliveries => Set<GitWebhookDelivery>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -131,6 +136,15 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
             b.ToTable("tasks");
             b.HasKey(t => t.Id);
 
+            b.Property(t => t.TaskNumber)
+                .IsRequired()
+                .HasDefaultValue(0);
+
+            b.Property(t => t.TaskKey)
+                .HasMaxLength(50)
+                .IsRequired()
+                .HasDefaultValue(string.Empty);
+
             b.Property(t => t.Title)
                 .HasMaxLength(200)
                 .IsRequired();
@@ -154,6 +168,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
                 .IsConcurrencyToken();
 
             b.HasIndex(t => new { t.ProjectId, t.Status });
+            b.HasIndex(t => new { t.ProjectId, t.TaskNumber })
+                .IsUnique()
+                .HasFilter("\"TaskNumber\" > 0");
+            b.HasIndex(t => t.TaskKey);
             b.HasIndex(t => new { t.AssigneeId, t.Status });
             b.HasIndex(t => t.DueAtUtc);
             b.HasIndex(t => t.CreatedAtUtc);
@@ -181,6 +199,16 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
             b.HasMany(t => t.StatusHistory)
                 .WithOne(h => h.Task)
                 .HasForeignKey(h => h.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(t => t.GitBranches)
+                .WithOne(gb => gb.Task)
+                .HasForeignKey(gb => gb.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(t => t.PullRequestLinks)
+                .WithOne(l => l.Task)
+                .HasForeignKey(l => l.TaskId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -540,6 +568,113 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
             b.HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(a => a.ActorId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<ProjectGitRepository>(b =>
+        {
+            b.ToTable("project_git_repositories");
+            b.HasKey(r => r.Id);
+
+            b.Property(r => r.Provider).HasMaxLength(30).IsRequired();
+            b.Property(r => r.RepositoryOwner).HasMaxLength(100).IsRequired();
+            b.Property(r => r.RepositoryName).HasMaxLength(100).IsRequired();
+            b.Property(r => r.RepositoryFullName).HasMaxLength(210).IsRequired();
+            b.Property(r => r.ApiBaseUrl).HasMaxLength(300).IsRequired();
+            b.Property(r => r.WebBaseUrl).HasMaxLength(300).IsRequired();
+            b.Property(r => r.DefaultBranch).HasMaxLength(100).IsRequired();
+            b.Property(r => r.LastSyncError).HasMaxLength(1000);
+
+            b.HasIndex(r => new { r.ProjectId, r.Provider, r.RepositoryFullName }).IsUnique();
+            b.HasIndex(r => r.ProjectId);
+
+            b.HasOne(r => r.Project)
+                .WithMany()
+                .HasForeignKey(r => r.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(r => r.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<TaskGitBranch>(b =>
+        {
+            b.ToTable("task_git_branches");
+            b.HasKey(gb => gb.Id);
+
+            b.Property(gb => gb.BranchName).HasMaxLength(200).IsRequired();
+            b.Property(gb => gb.BaseBranch).HasMaxLength(100).IsRequired();
+            b.Property(gb => gb.BranchUrl).HasMaxLength(500).IsRequired();
+
+            b.HasIndex(gb => new { gb.RepositoryId, gb.BranchName }).IsUnique();
+            b.HasIndex(gb => gb.TaskId);
+
+            b.HasOne(gb => gb.Repository)
+                .WithMany()
+                .HasForeignKey(gb => gb.RepositoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<GitPullRequest>(b =>
+        {
+            b.ToTable("git_pull_requests");
+            b.HasKey(pr => pr.Id);
+
+            b.Property(pr => pr.Title).HasMaxLength(300).IsRequired();
+            b.Property(pr => pr.State).HasMaxLength(20).IsRequired();
+            b.Property(pr => pr.SourceBranch).HasMaxLength(200).IsRequired();
+            b.Property(pr => pr.TargetBranch).HasMaxLength(200).IsRequired();
+            b.Property(pr => pr.AuthorLogin).HasMaxLength(100).IsRequired();
+            b.Property(pr => pr.AuthorAvatarUrl).HasMaxLength(500);
+            b.Property(pr => pr.HtmlUrl).HasMaxLength(500).IsRequired();
+            b.Property(pr => pr.ReviewStatus).HasMaxLength(30).IsRequired();
+            b.Property(pr => pr.CheckStatus).HasMaxLength(30).IsRequired();
+
+            b.HasIndex(pr => new { pr.RepositoryId, pr.PrNumber }).IsUnique();
+            b.HasIndex(pr => new { pr.RepositoryId, pr.SourceBranch });
+
+            b.HasOne(pr => pr.Repository)
+                .WithMany()
+                .HasForeignKey(pr => pr.RepositoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(pr => pr.TaskLinks)
+                .WithOne(l => l.PullRequest)
+                .HasForeignKey(l => l.PullRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<TaskPullRequestLink>(b =>
+        {
+            b.ToTable("task_pull_request_links");
+            b.HasKey(l => l.Id);
+
+            b.Property(l => l.LinkSource).HasMaxLength(30).IsRequired();
+
+            b.HasIndex(l => new { l.TaskId, l.PullRequestId }).IsUnique();
+            b.HasIndex(l => l.PullRequestId);
+        });
+
+        builder.Entity<GitWebhookDelivery>(b =>
+        {
+            b.ToTable("git_webhook_deliveries");
+            b.HasKey(d => d.Id);
+
+            b.Property(d => d.Provider).HasMaxLength(30).IsRequired();
+            b.Property(d => d.DeliveryId).HasMaxLength(150).IsRequired();
+            b.Property(d => d.EventType).HasMaxLength(50).IsRequired();
+            b.Property(d => d.PayloadHash).HasMaxLength(64).IsRequired();
+            b.Property(d => d.Status).HasMaxLength(20).IsRequired();
+            b.Property(d => d.ErrorMessage).HasMaxLength(1000);
+
+            b.HasIndex(d => new { d.Provider, d.DeliveryId }).IsUnique();
+            b.HasIndex(d => d.ReceivedAtUtc);
+
+            b.HasOne(d => d.Repository)
+                .WithMany()
+                .HasForeignKey(d => d.RepositoryId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
     }

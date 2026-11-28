@@ -168,7 +168,9 @@ public class DashboardAppService : IDashboardAppService
                 t.Version,
                 t.Comments.Count,
                 t.CreatedAtUtc,
-                t.UpdatedAtUtc
+                t.UpdatedAtUtc,
+                t.TaskNumber,
+                t.TaskKey
             );
         }).ToList();
 

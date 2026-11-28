@@ -20,11 +20,19 @@ public class TaskStatusTransitionsTests
     [InlineData(TaskStatuses.ToDo, TaskStatuses.Blocked, false)]
     [InlineData(TaskStatuses.ToDo, TaskStatuses.Done, false)]
     // InProgress transitions
+    [InlineData(TaskStatuses.InProgress, TaskStatuses.InReview, true)]
     [InlineData(TaskStatuses.InProgress, TaskStatuses.Blocked, true)]
     [InlineData(TaskStatuses.InProgress, TaskStatuses.Done, true)]
     [InlineData(TaskStatuses.InProgress, TaskStatuses.ToDo, true)]
     [InlineData(TaskStatuses.InProgress, TaskStatuses.Cancelled, true)]
     [InlineData(TaskStatuses.InProgress, TaskStatuses.Backlog, false)]
+    // InReview transitions
+    [InlineData(TaskStatuses.InReview, TaskStatuses.Done, true)]
+    [InlineData(TaskStatuses.InReview, TaskStatuses.InProgress, true)]
+    [InlineData(TaskStatuses.InReview, TaskStatuses.Blocked, true)]
+    [InlineData(TaskStatuses.InReview, TaskStatuses.Cancelled, true)]
+    [InlineData(TaskStatuses.InReview, TaskStatuses.Backlog, false)]
+    [InlineData(TaskStatuses.InReview, TaskStatuses.ToDo, false)]
     // Blocked transitions
     [InlineData(TaskStatuses.Blocked, TaskStatuses.InProgress, true)]
     [InlineData(TaskStatuses.Blocked, TaskStatuses.ToDo, true)]
@@ -53,6 +61,7 @@ public class TaskStatusTransitionsTests
     [InlineData(TaskStatuses.Backlog)]
     [InlineData(TaskStatuses.ToDo)]
     [InlineData(TaskStatuses.InProgress)]
+    [InlineData(TaskStatuses.InReview)]
     [InlineData(TaskStatuses.Blocked)]
     [InlineData(TaskStatuses.Done)]
     [InlineData(TaskStatuses.Cancelled)]

@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TaskService } from '../../core/tasks/task.service';
 import { ProjectService } from '../../core/projects/project.service';
+import { GitService } from '../../core/git/git.service';
+import { ProjectGitRepository, ProjectPullRequestSummary } from '../../core/git/git.models';
 import { ProjectMember } from '../../core/projects/project.models';
 import {
   ALLOWED_TASK_TRANSITIONS,
@@ -38,7 +40,7 @@ import {
           <span class="sep">/</span>
           <span class="breadcrumb-proj">[{{ item.projectCode }}] {{ item.projectName }}</span>
           <span class="sep">/</span>
-          <span class="breadcrumb-current">{{ item.title }}</span>
+          <span class="breadcrumb-current">{{ item.taskKey || item.title }}</span>
         </nav>
 
         <!-- Notification Alerts -->
@@ -59,7 +61,7 @@ import {
         <header class="detail-header">
           <div class="header-main">
             <div class="badges-row">
-              <span class="project-tag">{{ item.projectCode }}</span>
+              <span class="project-tag">{{ item.taskKey || item.projectCode }}</span>
               <span class="status-pill" [class]="'status-' + item.status.toLowerCase()">
                 {{ item.status }}
               </span>
@@ -109,6 +111,86 @@ import {
               } @else {
                 <p class="empty-text">No description provided for this task.</p>
               }
+            </section>
+
+            <!-- Git Branches & Pull Requests -->
+            <section class="content-card git-card">
+              <div class="card-title-row">
+                <h2>Git Branches & Pull Requests</h2>
+                @if (projectRepos().length > 0) {
+                  <div class="git-actions-row">
+                    <button type="button" class="btn-git-secondary" (click)="openLinkPrModal()">+ Link PR</button>
+                    <button type="button" class="btn-git-primary" (click)="openCreateBranchModal()">🌿 Create Branch</button>
+                  </div>
+                }
+              </div>
+
+              @if (projectRepos().length === 0) {
+                <p class="empty-text">
+                  No Git repository connected to this project yet. Connect a GitHub repository in
+                  <a [routerLink]="['/projects', item.projectId]" class="btn-link">Project Settings</a>.
+                </p>
+              }
+
+              @if ((item.branches?.length || 0) > 0) {
+                <div class="git-subsection">
+                  <h3>Linked Branches ({{ item.branches!.length }})</h3>
+                  <div class="git-list">
+                    @for (b of item.branches!; track b.id) {
+                      <div class="git-item">
+                        <div class="git-item-main">
+                          <a [href]="b.branchUrl" target="_blank" rel="noopener noreferrer" class="branch-name-link">
+                            🌿 {{ b.branchName }}
+                          </a>
+                          <span class="git-submeta">{{ b.repositoryFullName }} (from {{ b.baseBranch }})</span>
+                        </div>
+                        <button type="button" class="btn-copy-sm" (click)="copyCheckoutCommand(b.branchName)">
+                          Copy checkout
+                        </button>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+
+              <div class="git-subsection">
+                <h3>Linked Pull Requests ({{ item.pullRequests?.length || 0 }})</h3>
+                @if ((item.pullRequests?.length || 0) > 0) {
+                  <div class="git-list">
+                    @for (pr of item.pullRequests!; track pr.id) {
+                      <article class="pr-item">
+                        <div class="pr-item-top">
+                          <div class="pr-title-group">
+                            <span class="pr-state-badge" [class]="'pr-state-' + pr.state.toLowerCase()">
+                              {{ pr.state }}
+                            </span>
+                            <a [href]="pr.htmlUrl" target="_blank" rel="noopener noreferrer" class="pr-link">
+                              #{{ pr.prNumber }} {{ pr.title }}
+                            </a>
+                          </div>
+                          <button type="button" class="btn-unlink" (click)="onUnlinkPr(pr.id)">Unlink</button>
+                        </div>
+
+                        <div class="pr-meta-row">
+                          <span class="branch-chip">{{ pr.sourceBranch }} → {{ pr.targetBranch }}</span>
+                          <span>by @{{ pr.authorLogin }}</span>
+                          <span class="review-chip" [class]="'rev-' + pr.reviewStatus.toLowerCase()">
+                            Review: {{ pr.reviewStatus }}
+                          </span>
+                          <span class="check-chip" [class]="'chk-' + pr.checkStatus.toLowerCase()">
+                            CI: {{ pr.checkStatus }}
+                          </span>
+                          <span class="diff-stats">+{{ pr.additions }} / -{{ pr.deletions }}</span>
+                        </div>
+                      </article>
+                    }
+                  </div>
+                } @else {
+                  <p class="empty-text">
+                    No pull requests linked yet. Reference <code>{{ item.taskKey }}</code> in a branch name or PR title, or click Link PR.
+                  </p>
+                }
+              </div>
             </section>
 
             <!-- Comments & Discussion -->
@@ -343,6 +425,114 @@ import {
             </div>
           </div>
         }
+
+        <!-- Create Branch Modal -->
+        @if (showBranchModal()) {
+          <div class="modal-backdrop" (click)="closeCreateBranchModal()">
+            <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+              <header class="modal-header">
+                <h2>Create Git Branch ({{ item.taskKey || item.projectCode }})</h2>
+                <button class="modal-close" (click)="closeCreateBranchModal()">✕</button>
+              </header>
+
+              <form (ngSubmit)="onCreateBranch()" class="modal-form">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="td-branch-repo">Repository</label>
+                    <select id="td-branch-repo" [(ngModel)]="branchModel.repositoryId" name="tdRepoId" (change)="onBranchRepoChanged()">
+                      @for (repo of projectRepos(); track repo.id) {
+                        <option [value]="repo.id">{{ repo.repositoryFullName }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="td-branch-prefix">Prefix</label>
+                    <select id="td-branch-prefix" [(ngModel)]="branchModel.branchPrefix" name="tdPrefix" (change)="refreshSuggestedBranchName()">
+                      <option value="feat">feat</option>
+                      <option value="fix">fix</option>
+                      <option value="chore">chore</option>
+                      <option value="refactor">refactor</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="td-branch-base">Base Branch</label>
+                  <input id="td-branch-base" type="text" [(ngModel)]="branchModel.baseBranch" name="tdBaseBranch" required />
+                </div>
+
+                <div class="form-group">
+                  <label for="td-branch-name">Branch Name</label>
+                  <input id="td-branch-name" type="text" [(ngModel)]="branchModel.branchName" name="tdBranchName" required />
+                </div>
+
+                @if (gitModalError()) {
+                  <div class="modal-error">{{ gitModalError() }}</div>
+                }
+
+                <footer class="modal-footer">
+                  <button type="button" class="btn-cancel" (click)="closeCreateBranchModal()">Cancel</button>
+                  <button type="submit" class="primary-btn" [disabled]="isGitSubmitting()">
+                    {{ isGitSubmitting() ? 'Creating...' : 'Create Branch' }}
+                  </button>
+                </footer>
+              </form>
+            </div>
+          </div>
+        }
+
+        <!-- Link PR Modal -->
+        @if (showLinkPrModal()) {
+          <div class="modal-backdrop" (click)="closeLinkPrModal()">
+            <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+              <header class="modal-header">
+                <h2>Link Pull Request</h2>
+                <button class="modal-close" (click)="closeLinkPrModal()">✕</button>
+              </header>
+
+              <form (ngSubmit)="onLinkPr()" class="modal-form">
+                <div class="form-group">
+                  <label for="td-link-repo">Repository</label>
+                  <select id="td-link-repo" [(ngModel)]="linkPrModel.repositoryId" name="linkRepoId">
+                    @for (repo of projectRepos(); track repo.id) {
+                      <option [value]="repo.id">{{ repo.repositoryFullName }}</option>
+                    }
+                  </select>
+                </div>
+
+                @if (projectPullRequests().length > 0) {
+                  <div class="form-group">
+                    <label for="td-link-pick">Select Synced PR (optional)</label>
+                    <select id="td-link-pick" (change)="onSyncedPrPicked($event)">
+                      <option value="">-- Choose a synced PR or enter # below --</option>
+                      @for (p of projectPullRequests(); track p.id) {
+                        <option [value]="p.prNumber + '|' + p.repositoryId">
+                          #{{ p.prNumber }} [{{ p.state }}] {{ p.title }}
+                        </option>
+                      }
+                    </select>
+                  </div>
+                }
+
+                <div class="form-group">
+                  <label for="td-link-num">Pull Request Number *</label>
+                  <input id="td-link-num" type="number" min="1" [(ngModel)]="linkPrModel.prNumber" name="linkPrNum" required placeholder="e.g. 42" />
+                </div>
+
+                @if (gitModalError()) {
+                  <div class="modal-error">{{ gitModalError() }}</div>
+                }
+
+                <footer class="modal-footer">
+                  <button type="button" class="btn-cancel" (click)="closeLinkPrModal()">Cancel</button>
+                  <button type="submit" class="primary-btn" [disabled]="isGitSubmitting()">
+                    {{ isGitSubmitting() ? 'Linking...' : 'Link Pull Request' }}
+                  </button>
+                </footer>
+              </form>
+            </div>
+          </div>
+        }
       }
     </div>
   `,
@@ -437,6 +627,7 @@ import {
     }
     .btn-trans-todo { background: #e0e7ff; color: #3730a3; border-color: #c7d2fe; }
     .btn-trans-inprogress { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+    .btn-trans-inreview { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
     .btn-trans-blocked { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
     .btn-trans-done { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
     .btn-trans-cancelled { background: #e2e8f0; color: #475569; border-color: #cbd5e1; }
@@ -569,6 +760,7 @@ import {
     .status-backlog { background: #f1f5f9; color: #475569; }
     .status-todo { background: #e0e7ff; color: #3730a3; }
     .status-inprogress { background: #fef3c7; color: #92400e; }
+    .status-inreview { background: #ede9fe; color: #5b21b6; }
     .status-blocked { background: #fee2e2; color: #991b1b; }
     .status-done { background: #dcfce7; color: #166534; }
     .status-cancelled { background: #e2e8f0; color: #64748b; }
@@ -677,17 +869,120 @@ import {
       border-radius: 6px;
       font-size: 0.85rem;
     }
+    .card-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      gap: 0.75rem;
+    }
+    .card-title-row h2 { margin: 0; }
+    .git-actions-row { display: flex; gap: 0.5rem; }
+    .btn-git-primary {
+      background: #0f172a;
+      color: #ffffff;
+      border: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-git-secondary {
+      background: #f8fafc;
+      color: #1e293b;
+      border: 1px solid #cbd5e1;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .git-subsection { margin-top: 1rem; }
+    .git-subsection h3 { font-size: 0.9rem; color: #475569; margin: 0 0 0.6rem; }
+    .git-list { display: flex; flex-direction: column; gap: 0.65rem; }
+    .git-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.65rem 0.85rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      gap: 0.75rem;
+    }
+    .git-item-main { display: flex; flex-direction: column; gap: 0.15rem; }
+    .branch-name-link { font-family: monospace; font-size: 0.85rem; color: #1d4ed8; font-weight: 600; text-decoration: none; }
+    .branch-name-link:hover { text-decoration: underline; }
+    .git-submeta { font-size: 0.75rem; color: #64748b; }
+    .btn-copy-sm {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 0.25rem 0.6rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+      color: #334155;
+    }
+    .pr-item {
+      padding: 0.85rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      background: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .pr-item-top { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+    .pr-title-group { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .pr-link { font-weight: 600; color: #0f172a; text-decoration: none; font-size: 0.92rem; }
+    .pr-link:hover { color: #2563eb; text-decoration: underline; }
+    .pr-state-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+    .pr-state-open { background: #dcfce7; color: #166534; }
+    .pr-state-draft { background: #e2e8f0; color: #475569; }
+    .pr-state-merged { background: #f3e8ff; color: #6b21a8; }
+    .pr-state-closed { background: #fee2e2; color: #991b1b; }
+    .pr-meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      font-size: 0.75rem;
+      color: #475569;
+      align-items: center;
+    }
+    .branch-chip { font-family: monospace; background: #e2e8f0; padding: 1px 6px; border-radius: 4px; }
+    .review-chip, .check-chip { font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #ffffff; border: 1px solid #cbd5e1; }
+    .rev-approved, .chk-success { color: #15803d; border-color: #86efac; }
+    .rev-changesrequested, .chk-failure { color: #b91c1c; border-color: #fca5a5; }
+    .diff-stats { font-family: monospace; color: #64748b; }
+    .btn-unlink {
+      background: transparent;
+      border: 1px solid #fecaca;
+      color: #b91c1c;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 0.72rem;
+      cursor: pointer;
+    }
   `]
 })
 export class TaskDetailComponent implements OnInit {
   private readonly taskService = inject(TaskService);
   private readonly projectService = inject(ProjectService);
+  private readonly gitService = inject(GitService);
   private readonly route = inject(ActivatedRoute);
 
   readonly taskPriorities = TASK_PRIORITIES;
 
   task = signal<TaskDetail | null>(null);
   projectMembers = signal<ProjectMember[]>([]);
+  projectRepos = signal<ProjectGitRepository[]>([]);
+  projectPullRequests = signal<ProjectPullRequestSummary[]>([]);
   isLoading = signal<boolean>(true);
   errorMessage = signal<string>('');
   successMessage = signal<string>('');
@@ -716,6 +1011,22 @@ export class TaskDetailComponent implements OnInit {
   newCommentBody = '';
   isSubmittingComment = signal<boolean>(false);
 
+  // Git Modals
+  showBranchModal = signal<boolean>(false);
+  showLinkPrModal = signal<boolean>(false);
+  isGitSubmitting = signal<boolean>(false);
+  gitModalError = signal<string>('');
+  branchModel = {
+    repositoryId: '',
+    branchPrefix: 'feat',
+    baseBranch: 'main',
+    branchName: ''
+  };
+  linkPrModel = {
+    repositoryId: '',
+    prNumber: 1
+  };
+
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
@@ -732,11 +1043,23 @@ export class TaskDetailComponent implements OnInit {
         this.task.set(data);
         this.isLoading.set(false);
         this.loadProjectMembers(data.projectId);
+        this.loadProjectGitContext(data.projectId);
       },
       error: (err) => {
         this.errorMessage.set(err.error?.detail || 'Task not found or access denied.');
         this.isLoading.set(false);
       }
+    });
+  }
+
+  loadProjectGitContext(projectId: string): void {
+    this.gitService.listProjectRepositories(projectId).subscribe({
+      next: (repos) => this.projectRepos.set(repos.filter(r => r.isActive)),
+      error: () => this.projectRepos.set([])
+    });
+    this.gitService.listProjectPullRequests(projectId).subscribe({
+      next: (prs) => this.projectPullRequests.set(prs),
+      error: () => this.projectPullRequests.set([])
     });
   }
 
@@ -872,5 +1195,150 @@ export class TaskDetailComponent implements OnInit {
         this.isSubmittingComment.set(false);
       }
     });
+  }
+
+  openCreateBranchModal(): void {
+    const current = this.task();
+    const defaultRepo = this.projectRepos().find(r => r.isDefault) ?? this.projectRepos()[0];
+    if (!current || !defaultRepo) return;
+
+    this.gitModalError.set('');
+    this.branchModel = {
+      repositoryId: defaultRepo.id,
+      branchPrefix: 'feat',
+      baseBranch: defaultRepo.defaultBranch,
+      branchName: this.buildBranchSlug(current, 'feat')
+    };
+    this.showBranchModal.set(true);
+  }
+
+  closeCreateBranchModal(): void {
+    this.showBranchModal.set(false);
+    this.gitModalError.set('');
+  }
+
+  onBranchRepoChanged(): void {
+    const repo = this.projectRepos().find(r => r.id === this.branchModel.repositoryId);
+    if (repo) {
+      this.branchModel.baseBranch = repo.defaultBranch;
+    }
+  }
+
+  refreshSuggestedBranchName(): void {
+    const current = this.task();
+    if (!current) return;
+    this.branchModel.branchName = this.buildBranchSlug(current, this.branchModel.branchPrefix);
+  }
+
+  onCreateBranch(): void {
+    const current = this.task();
+    if (!current) return;
+
+    this.isGitSubmitting.set(true);
+    this.gitModalError.set('');
+
+    this.gitService.createTaskBranch(current.id, {
+      repositoryId: this.branchModel.repositoryId || undefined,
+      branchPrefix: this.branchModel.branchPrefix,
+      baseBranch: this.branchModel.baseBranch.trim() || undefined,
+      branchName: this.branchModel.branchName.trim() || undefined
+    }).subscribe({
+      next: (branch) => {
+        this.isGitSubmitting.set(false);
+        this.closeCreateBranchModal();
+        this.successMessage.set(`Branch "${branch.branchName}" created on ${branch.repositoryFullName}.`);
+        this.loadTask(current.id);
+      },
+      error: (err) => {
+        this.gitModalError.set(err.error?.detail || 'Failed to create Git branch.');
+        this.isGitSubmitting.set(false);
+      }
+    });
+  }
+
+  openLinkPrModal(): void {
+    const defaultRepo = this.projectRepos().find(r => r.isDefault) ?? this.projectRepos()[0];
+    if (!defaultRepo) return;
+
+    this.gitModalError.set('');
+    this.linkPrModel = {
+      repositoryId: defaultRepo.id,
+      prNumber: 1
+    };
+    this.showLinkPrModal.set(true);
+  }
+
+  closeLinkPrModal(): void {
+    this.showLinkPrModal.set(false);
+    this.gitModalError.set('');
+  }
+
+  onSyncedPrPicked(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    if (!value) return;
+    const [prStr, repoId] = value.split('|');
+    const prNumber = Number(prStr);
+    if (prNumber > 0) {
+      this.linkPrModel.prNumber = prNumber;
+    }
+    if (repoId) {
+      this.linkPrModel.repositoryId = repoId;
+    }
+  }
+
+  onLinkPr(): void {
+    const current = this.task();
+    if (!current || !this.linkPrModel.repositoryId || this.linkPrModel.prNumber <= 0) return;
+
+    this.isGitSubmitting.set(true);
+    this.gitModalError.set('');
+
+    this.gitService.linkPullRequest(current.id, {
+      repositoryId: this.linkPrModel.repositoryId,
+      prNumber: this.linkPrModel.prNumber
+    }).subscribe({
+      next: (pr) => {
+        this.isGitSubmitting.set(false);
+        this.closeLinkPrModal();
+        this.successMessage.set(`Pull request #${pr.prNumber} linked.`);
+        this.loadTask(current.id);
+      },
+      error: (err) => {
+        this.gitModalError.set(err.error?.detail || 'Failed to link pull request.');
+        this.isGitSubmitting.set(false);
+      }
+    });
+  }
+
+  onUnlinkPr(pullRequestId: string): void {
+    const current = this.task();
+    if (!current) return;
+
+    this.gitService.unlinkPullRequest(current.id, pullRequestId).subscribe({
+      next: () => {
+        this.successMessage.set('Pull request unlinked.');
+        this.loadTask(current.id);
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.detail || 'Failed to unlink pull request.');
+      }
+    });
+  }
+
+  copyCheckoutCommand(branchName: string): void {
+    const cmd = `git fetch origin && git checkout ${branchName}`;
+    navigator.clipboard?.writeText(cmd);
+    this.successMessage.set(`Copied "${cmd}" to clipboard.`);
+  }
+
+  private buildBranchSlug(task: TaskDetail, prefix: string): string {
+    const key = (task.taskKey || task.projectCode || 'TASK').toUpperCase();
+    const slug = task.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 45)
+      .replace(/-+$/, '');
+    return slug ? `${prefix}/${key}-${slug}` : `${prefix}/${key}`;
   }
 }

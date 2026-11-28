@@ -4,6 +4,7 @@ using WorkFlowPro.Application.Features.Admin.Services;
 using WorkFlowPro.Application.Features.Approvals.Services;
 using WorkFlowPro.Application.Features.Auth.Services;
 using WorkFlowPro.Application.Features.Dashboard.Services;
+using WorkFlowPro.Application.Features.Git.Services;
 using WorkFlowPro.Application.Features.Notifications.Services;
 using WorkFlowPro.Application.Features.Projects.Services;
 using WorkFlowPro.Application.Features.Reports.Services;
@@ -26,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<IDashboardAppService, DashboardAppService>();
         services.AddScoped<IReportAppService, ReportAppService>();
         services.AddScoped<IAdminAppService, AdminAppService>();
+        services.AddScoped<IGitIntegrationAppService, GitIntegrationAppService>();
 
         return services;
     }

@@ -6,7 +6,8 @@ namespace WorkFlowPro.Domain.Constants;
 /// Enforces business transition rules for tasks:
 /// - Backlog    -> ToDo, Cancelled
 /// - ToDo       -> InProgress, Backlog, Cancelled
-/// - InProgress -> Blocked, Done, ToDo, Cancelled
+/// - InProgress -> InReview, Blocked, Done, ToDo, Cancelled
+/// - InReview   -> Done, InProgress, Blocked, Cancelled
 /// - Blocked    -> InProgress, ToDo, Cancelled
 /// - Done       -> InProgress, ToDo
 /// - Cancelled  -> Backlog, ToDo
@@ -17,7 +18,8 @@ public static class TaskStatusTransitions
     {
         [TaskStatuses.Backlog] = new(StringComparer.OrdinalIgnoreCase) { TaskStatuses.ToDo, TaskStatuses.Cancelled },
         [TaskStatuses.ToDo] = new(StringComparer.OrdinalIgnoreCase) { TaskStatuses.InProgress, TaskStatuses.Backlog, TaskStatuses.Cancelled },
-        [TaskStatuses.InProgress] = new(StringComparer.OrdinalIgnoreCase) { TaskStatuses.Blocked, TaskStatuses.Done, TaskStatuses.ToDo, TaskStatuses.Cancelled },
+        [TaskStatuses.InProgress] = new(StringComparer.OrdinalIgnoreCase) { TaskStatuses.InReview, TaskStatuses.Blocked, TaskStatuses.Done, TaskStatuses.ToDo, TaskStatuses.Cancelled },
+        [TaskStatuses.InReview] = new(StringComparer.OrdinalIgnoreCase) { TaskStatuses.Done, TaskStatuses.InProgress, TaskStatuses.Blocked, TaskStatuses.Cancelled },
         [TaskStatuses.Blocked] = new(StringComparer.OrdinalIgnoreCase) { TaskStatuses.InProgress, TaskStatuses.ToDo, TaskStatuses.Cancelled },
         [TaskStatuses.Done] = new(StringComparer.OrdinalIgnoreCase) { TaskStatuses.InProgress, TaskStatuses.ToDo },
         [TaskStatuses.Cancelled] = new(StringComparer.OrdinalIgnoreCase) { TaskStatuses.Backlog, TaskStatuses.ToDo }

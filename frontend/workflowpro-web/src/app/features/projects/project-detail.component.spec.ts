@@ -6,6 +6,7 @@ import { of } from 'rxjs';
 import { vi } from 'vitest';
 import { ProjectDetailComponent } from './project-detail.component';
 import { ProjectService } from '../../core/projects/project.service';
+import { GitService } from '../../core/git/git.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { ProjectDetail } from '../../core/projects/project.models';
 
@@ -13,6 +14,7 @@ describe('ProjectDetailComponent', () => {
   let component: ProjectDetailComponent;
   let fixture: ComponentFixture<ProjectDetailComponent>;
   let projectService: ProjectService;
+  let gitService: GitService;
   let authService: AuthService;
 
   const mockDetail: ProjectDetail = {
@@ -58,7 +60,10 @@ describe('ProjectDetailComponent', () => {
     fixture = TestBed.createComponent(ProjectDetailComponent);
     component = fixture.componentInstance;
     projectService = TestBed.inject(ProjectService);
+    gitService = TestBed.inject(GitService);
     authService = TestBed.inject(AuthService);
+    vi.spyOn(gitService, 'listProjectRepositories').mockReturnValue(of([]));
+    vi.spyOn(gitService, 'listProjectPullRequests').mockReturnValue(of([]));
   });
 
   it('should load project detail on init', () => {

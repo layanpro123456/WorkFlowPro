@@ -18,6 +18,7 @@ export interface TaskFilterParams {
   priority?: string;
   assigneeId?: string;
   search?: string;
+  prState?: string;
   page?: number;
   pageSize?: number;
 }
@@ -45,6 +46,9 @@ export class TaskService {
     }
     if (filters?.search && filters.search.trim()) {
       params = params.set('search', filters.search.trim());
+    }
+    if (filters?.prState && filters.prState !== 'All') {
+      params = params.set('prState', filters.prState);
     }
 
     return this.http.get<PagedResult<TaskSummary>>(

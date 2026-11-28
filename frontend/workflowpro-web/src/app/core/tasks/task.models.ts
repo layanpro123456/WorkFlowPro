@@ -1,10 +1,13 @@
-export type TaskStatus = 'Backlog' | 'ToDo' | 'InProgress' | 'Blocked' | 'Done' | 'Cancelled';
+import { TaskGitBranch, TaskGitSummary, TaskPullRequest } from '../git/git.models';
+
+export type TaskStatus = 'Backlog' | 'ToDo' | 'InProgress' | 'InReview' | 'Blocked' | 'Done' | 'Cancelled';
 export type TaskPriority = 'Low' | 'Normal' | 'High' | 'Urgent';
 
 export const TASK_STATUSES: TaskStatus[] = [
   'Backlog',
   'ToDo',
   'InProgress',
+  'InReview',
   'Blocked',
   'Done',
   'Cancelled'
@@ -20,7 +23,8 @@ export const TASK_PRIORITIES: TaskPriority[] = [
 export const ALLOWED_TASK_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   Backlog: ['ToDo', 'Cancelled'],
   ToDo: ['InProgress', 'Backlog', 'Cancelled'],
-  InProgress: ['Blocked', 'Done', 'ToDo', 'Cancelled'],
+  InProgress: ['InReview', 'Blocked', 'Done', 'ToDo', 'Cancelled'],
+  InReview: ['Done', 'InProgress', 'Blocked', 'Cancelled'],
   Blocked: ['InProgress', 'ToDo', 'Cancelled'],
   Done: ['InProgress', 'ToDo'],
   Cancelled: ['Backlog', 'ToDo']
@@ -31,6 +35,8 @@ export interface TaskSummary {
   projectId: string;
   projectCode: string;
   projectName: string;
+  taskNumber?: number;
+  taskKey?: string;
   title: string;
   status: TaskStatus;
   priority: TaskPriority;
@@ -44,6 +50,7 @@ export interface TaskSummary {
   commentCount: number;
   createdAtUtc: string;
   updatedAtUtc?: string | null;
+  gitSummary?: TaskGitSummary | null;
 }
 
 export interface TaskComment {
@@ -71,6 +78,8 @@ export interface TaskDetail {
   projectId: string;
   projectCode: string;
   projectName: string;
+  taskNumber?: number;
+  taskKey?: string;
   title: string;
   description?: string | null;
   status: TaskStatus;
@@ -86,6 +95,8 @@ export interface TaskDetail {
   updatedAtUtc?: string | null;
   comments: TaskComment[];
   history: TaskStatusHistory[];
+  branches?: TaskGitBranch[];
+  pullRequests?: TaskPullRequest[];
 }
 
 export interface CreateTaskRequest {

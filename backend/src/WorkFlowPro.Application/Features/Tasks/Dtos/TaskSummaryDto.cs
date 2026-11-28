@@ -1,3 +1,5 @@
+using WorkFlowPro.Application.Features.Git.Dtos;
+
 namespace WorkFlowPro.Application.Features.Tasks.Dtos;
 
 public record TaskSummaryDto(
@@ -17,5 +19,8 @@ public record TaskSummaryDto(
     int Version,
     int CommentCount,
     DateTime CreatedAtUtc,
-    DateTime? UpdatedAtUtc
+    DateTime? UpdatedAtUtc,
+    int TaskNumber = 0,
+    string TaskKey = "",
+    TaskGitSummaryDto? GitSummary = null
 );

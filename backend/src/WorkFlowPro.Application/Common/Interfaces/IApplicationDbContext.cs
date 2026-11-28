@@ -21,6 +21,11 @@ public interface IApplicationDbContext
     DbSet<ApprovalDecision> ApprovalDecisions { get; }
     DbSet<InAppNotification> Notifications { get; }
     DbSet<AuditLog> AuditLogs { get; }
+    DbSet<ProjectGitRepository> ProjectGitRepositories { get; }
+    DbSet<TaskGitBranch> TaskGitBranches { get; }
+    DbSet<GitPullRequest> GitPullRequests { get; }
+    DbSet<TaskPullRequestLink> TaskPullRequestLinks { get; }
+    DbSet<GitWebhookDelivery> GitWebhookDeliveries { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

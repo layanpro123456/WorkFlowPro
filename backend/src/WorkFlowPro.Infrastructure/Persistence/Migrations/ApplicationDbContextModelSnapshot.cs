@@ -266,6 +266,211 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.ToTable("approval_request_steps", (string)null);
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.AuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ActorId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("EntityId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MetadataJson")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("metadata");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAtUtc");
+
+                    b.HasIndex("ActorId", "OccurredAtUtc");
+
+                    b.HasIndex("EntityType", "EntityId");
+
+                    b.ToTable("audit_logs", (string)null);
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.GitPullRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Additions")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AuthorAvatarUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AuthorLogin")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Body")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CheckStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ClosedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CommitsCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Deletions")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("ExternalPrId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("HtmlUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastSyncedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("MergedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OpenedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PrNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("RepositoryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReviewStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceBranch")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetBranch")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RepositoryId", "PrNumber")
+                        .IsUnique();
+
+                    b.HasIndex("RepositoryId", "SourceBranch");
+
+                    b.ToTable("git_pull_requests", (string)null);
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.GitWebhookDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeliveryId")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ProcessedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("RepositoryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceivedAtUtc");
+
+                    b.HasIndex("RepositoryId");
+
+                    b.HasIndex("Provider", "DeliveryId")
+                        .IsUnique();
+
+                    b.ToTable("git_webhook_deliveries", (string)null);
+                });
+
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.InAppNotification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -364,6 +569,99 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("projects", (string)null);
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.ProjectGitRepository", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApiBaseUrl")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("AutoLinkEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AutoTransitionEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DefaultBranch")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EncryptedAccessToken")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EncryptedWebhookSecret")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastSyncError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastSyncedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RepositoryFullName")
+                        .IsRequired()
+                        .HasMaxLength(210)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RepositoryName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RepositoryOwner")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("UseInReviewColumn")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("WebBaseUrl")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("ProjectId", "Provider", "RepositoryFullName")
+                        .IsUnique();
+
+                    b.ToTable("project_git_repositories", (string)null);
                 });
 
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.ProjectMember", b =>
@@ -535,6 +833,52 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.ToTable("task_comments", (string)null);
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.TaskGitBranch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BaseBranch")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BranchName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BranchUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RepositoryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId");
+
+                    b.HasIndex("RepositoryId", "BranchName")
+                        .IsUnique();
+
+                    b.ToTable("task_git_branches", (string)null);
+                });
+
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.TaskItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -572,6 +916,18 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TaskKey")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("");
+
+                    b.Property<int>("TaskNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -594,11 +950,56 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DueAtUtc");
 
+                    b.HasIndex("TaskKey");
+
                     b.HasIndex("AssigneeId", "Status");
 
                     b.HasIndex("ProjectId", "Status");
 
+                    b.HasIndex("ProjectId", "TaskNumber")
+                        .IsUnique()
+                        .HasFilter("\"TaskNumber\" > 0");
+
                     b.ToTable("tasks", (string)null);
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.TaskPullRequestLink", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LinkSource")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LinkedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("LinkedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PullRequestId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PullRequestId");
+
+                    b.HasIndex("TaskId", "PullRequestId")
+                        .IsUnique();
+
+                    b.ToTable("task_pull_request_links", (string)null);
                 });
 
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.TaskStatusHistory", b =>
@@ -989,6 +1390,35 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.Navigation("Request");
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.AuditLog", b =>
+                {
+                    b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.GitPullRequest", b =>
+                {
+                    b.HasOne("WorkFlowPro.Domain.Entities.ProjectGitRepository", "Repository")
+                        .WithMany()
+                        .HasForeignKey("RepositoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Repository");
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.GitWebhookDelivery", b =>
+                {
+                    b.HasOne("WorkFlowPro.Domain.Entities.ProjectGitRepository", "Repository")
+                        .WithMany()
+                        .HasForeignKey("RepositoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Repository");
+                });
+
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.InAppNotification", b =>
                 {
                     b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
@@ -1005,6 +1435,23 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.ProjectGitRepository", b =>
+                {
+                    b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WorkFlowPro.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.ProjectMember", b =>
@@ -1071,6 +1518,25 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.Navigation("Task");
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.TaskGitBranch", b =>
+                {
+                    b.HasOne("WorkFlowPro.Domain.Entities.ProjectGitRepository", "Repository")
+                        .WithMany()
+                        .HasForeignKey("RepositoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WorkFlowPro.Domain.Entities.TaskItem", "Task")
+                        .WithMany("GitBranches")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Repository");
+
+                    b.Navigation("Task");
+                });
+
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.TaskItem", b =>
                 {
                     b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
@@ -1091,6 +1557,25 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.TaskPullRequestLink", b =>
+                {
+                    b.HasOne("WorkFlowPro.Domain.Entities.GitPullRequest", "PullRequest")
+                        .WithMany("TaskLinks")
+                        .HasForeignKey("PullRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WorkFlowPro.Domain.Entities.TaskItem", "Task")
+                        .WithMany("PullRequestLinks")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PullRequest");
+
+                    b.Navigation("Task");
                 });
 
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.TaskStatusHistory", b =>
@@ -1179,6 +1664,11 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.Navigation("Decision");
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.GitPullRequest", b =>
+                {
+                    b.Navigation("TaskLinks");
+                });
+
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.Project", b =>
                 {
                     b.Navigation("Members");
@@ -1194,6 +1684,10 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.TaskItem", b =>
                 {
                     b.Navigation("Comments");
+
+                    b.Navigation("GitBranches");
+
+                    b.Navigation("PullRequestLinks");
 
                     b.Navigation("StatusHistory");
                 });

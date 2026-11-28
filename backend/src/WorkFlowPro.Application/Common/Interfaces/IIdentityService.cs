@@ -54,4 +54,8 @@ public interface IIdentityService
 
     Task<IReadOnlyList<string>> GetAllRolesAsync(
         CancellationToken cancellationToken);
+
+    Task<Guid?> FindUserIdByEmailAsync(
+        string email,
+        CancellationToken cancellationToken);
 }

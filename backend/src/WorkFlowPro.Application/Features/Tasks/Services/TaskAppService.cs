@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using WorkFlowPro.Application.Common.Interfaces;
 using WorkFlowPro.Application.Common.Models;
+using WorkFlowPro.Application.Features.Git.Dtos;
 using WorkFlowPro.Application.Features.Tasks.Dtos;
 using WorkFlowPro.Domain.Constants;
 using WorkFlowPro.Domain.Entities;
@@ -77,6 +78,13 @@ public class TaskAppService : ITaskAppService
             status: initialStatus
         );
 
+        var maxTaskNumber = await _context.Tasks
+            .Where(t => t.ProjectId == projectId)
+            .Select(t => (int?)t.TaskNumber)
+            .MaxAsync(cancellationToken) ?? 0;
+
+        task.AssignTaskKey(maxTaskNumber + 1, project.ProjectCode);
+
         _context.Tasks.Add(task);
 
         if (task.AssigneeId.HasValue && task.AssigneeId.Value != callerId)
@@ -106,7 +114,8 @@ public class TaskAppService : ITaskAppService
         string? search,
         int page,
         int pageSize,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? prState = null)
     {
         var callerId = RequireCallerId();
         var project = await GetAuthorizedProjectAsync(projectId, callerId, cancellationToken);
@@ -133,10 +142,29 @@ public class TaskAppService : ITaskAppService
             query = query.Where(t => t.AssigneeId == assigneeId.Value);
         }
 
+        if (!string.IsNullOrWhiteSpace(prState) && !string.Equals(prState, "All", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.Equals(prState, "HasPr", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(t => t.PullRequestLinks.Any());
+            }
+            else if (string.Equals(prState, "ChecksFailing", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(t => t.PullRequestLinks.Any(l =>
+                    l.PullRequest != null && l.PullRequest.CheckStatus == PullRequestCheckStatuses.Failure));
+            }
+            else
+            {
+                query = query.Where(t => t.PullRequestLinks.Any(l =>
+                    l.PullRequest != null && l.PullRequest.State == prState));
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim().ToLower();
             query = query.Where(t =>
+                t.TaskKey.ToLower().Contains(term) ||
                 t.Title.ToLower().Contains(term) ||
                 (t.Description != null && t.Description.ToLower().Contains(term)));
         }
@@ -151,6 +179,8 @@ public class TaskAppService : ITaskAppService
             {
                 t.Id,
                 t.ProjectId,
+                t.TaskNumber,
+                t.TaskKey,
                 t.Title,
                 t.Status,
                 t.Priority,
@@ -170,6 +200,7 @@ public class TaskAppService : ITaskAppService
             .Distinct();
 
         var userMap = await GetUserMapAsync(userIds, cancellationToken);
+        var gitSummaryMap = await BuildGitSummaryMapAsync(tasks.Select(t => t.Id).ToList(), cancellationToken);
 
         var items = tasks.Select(t => new TaskSummaryDto(
             Id: t.Id,
@@ -188,7 +219,10 @@ public class TaskAppService : ITaskAppService
             Version: t.Version,
             CommentCount: t.CommentCount,
             CreatedAtUtc: t.CreatedAtUtc,
-            UpdatedAtUtc: t.UpdatedAtUtc
+            UpdatedAtUtc: t.UpdatedAtUtc,
+            TaskNumber: t.TaskNumber,
+            TaskKey: t.TaskKey,
+            GitSummary: gitSummaryMap.TryGetValue(t.Id, out var gs) ? gs : null
         )).ToList();
 
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
@@ -204,6 +238,11 @@ public class TaskAppService : ITaskAppService
                 .ThenInclude(p => p!.Members)
             .Include(t => t.Comments)
             .Include(t => t.StatusHistory)
+            .Include(t => t.GitBranches)
+                .ThenInclude(b => b.Repository)
+            .Include(t => t.PullRequestLinks)
+                .ThenInclude(l => l.PullRequest)
+                    .ThenInclude(pr => pr!.Repository)
             .FirstOrDefaultAsync(t => t.Id == taskId, cancellationToken);
 
         if (task == null || task.Project == null)
@@ -244,6 +283,51 @@ public class TaskAppService : ITaskAppService
                 Comment: h.Comment
             )).ToList();
 
+        var branches = task.GitBranches
+            .OrderByDescending(b => b.CreatedAtUtc)
+            .Select(b => new TaskGitBranchDto(
+                Id: b.Id,
+                TaskId: b.TaskId,
+                RepositoryId: b.RepositoryId,
+                RepositoryFullName: b.Repository?.RepositoryFullName ?? string.Empty,
+                BranchName: b.BranchName,
+                BaseBranch: b.BaseBranch,
+                BranchUrl: b.BranchUrl,
+                CreatedByUserId: b.CreatedByUserId,
+                CreatedAtUtc: b.CreatedAtUtc
+            )).ToList();
+
+        var pullRequests = task.PullRequestLinks
+            .Where(l => l.PullRequest != null)
+            .OrderByDescending(l => l.PullRequest!.OpenedAtUtc)
+            .Select(l =>
+            {
+                var pr = l.PullRequest!;
+                return new TaskPullRequestDto(
+                    Id: pr.Id,
+                    RepositoryId: pr.RepositoryId,
+                    RepositoryFullName: pr.Repository?.RepositoryFullName ?? string.Empty,
+                    PrNumber: pr.PrNumber,
+                    Title: pr.Title,
+                    State: pr.State,
+                    SourceBranch: pr.SourceBranch,
+                    TargetBranch: pr.TargetBranch,
+                    AuthorLogin: pr.AuthorLogin,
+                    AuthorAvatarUrl: pr.AuthorAvatarUrl,
+                    HtmlUrl: pr.HtmlUrl,
+                    ReviewStatus: pr.ReviewStatus,
+                    CheckStatus: pr.CheckStatus,
+                    CommitsCount: pr.CommitsCount,
+                    Additions: pr.Additions,
+                    Deletions: pr.Deletions,
+                    LinkSource: l.LinkSource,
+                    OpenedAtUtc: pr.OpenedAtUtc,
+                    MergedAtUtc: pr.MergedAtUtc,
+                    ClosedAtUtc: pr.ClosedAtUtc,
+                    LastSyncedAtUtc: pr.LastSyncedAtUtc
+                );
+            }).ToList();
+
         return new TaskDetailDto(
             Id: task.Id,
             ProjectId: task.ProjectId,
@@ -263,7 +347,11 @@ public class TaskAppService : ITaskAppService
             CreatedAtUtc: task.CreatedAtUtc,
             UpdatedAtUtc: task.UpdatedAtUtc,
             Comments: comments,
-            History: history
+            History: history,
+            TaskNumber: task.TaskNumber,
+            TaskKey: task.TaskKey,
+            Branches: branches,
+            PullRequests: pullRequests
         );
     }
 
@@ -322,7 +410,8 @@ public class TaskAppService : ITaskAppService
         }
 
         var userMap = await GetUserMapAsync(new[] { task.CreatedById, task.AssigneeId ?? Guid.Empty }, cancellationToken);
-        return MapToSummary(task, task.Project, userMap);
+        var gitSummaryMap = await BuildGitSummaryMapAsync(new[] { task.Id }, cancellationToken);
+        return MapToSummary(task, task.Project, userMap, gitSummaryMap.GetValueOrDefault(task.Id));
     }
 
     public async Task<TaskSummaryDto> ChangeStatusAsync(
@@ -374,7 +463,8 @@ public class TaskAppService : ITaskAppService
         }
 
         var userMap = await GetUserMapAsync(new[] { task.CreatedById, task.AssigneeId ?? Guid.Empty }, cancellationToken);
-        return MapToSummary(task, task.Project, userMap);
+        var gitSummaryMap = await BuildGitSummaryMapAsync(new[] { task.Id }, cancellationToken);
+        return MapToSummary(task, task.Project, userMap, gitSummaryMap.GetValueOrDefault(task.Id));
     }
 
     public async Task<TaskCommentDto> AddCommentAsync(
@@ -560,10 +650,77 @@ public class TaskAppService : ITaskAppService
         return await _identityService.GetUsersSummaryAsync(validIds, cancellationToken);
     }
 
+    private async Task<Dictionary<Guid, TaskGitSummaryDto>> BuildGitSummaryMapAsync(
+        IReadOnlyCollection<Guid> taskIds,
+        CancellationToken cancellationToken)
+    {
+        if (taskIds.Count == 0)
+        {
+            return new Dictionary<Guid, TaskGitSummaryDto>();
+        }
+
+        var branches = await _context.TaskGitBranches
+            .AsNoTracking()
+            .Where(b => taskIds.Contains(b.TaskId))
+            .OrderByDescending(b => b.CreatedAtUtc)
+            .Select(b => new { b.TaskId, b.BranchName, b.BranchUrl })
+            .ToListAsync(cancellationToken);
+
+        var prLinks = await _context.TaskPullRequestLinks
+            .AsNoTracking()
+            .Where(l => taskIds.Contains(l.TaskId) && l.PullRequest != null)
+            .Select(l => new
+            {
+                l.TaskId,
+                l.PullRequest!.PrNumber,
+                l.PullRequest.State,
+                l.PullRequest.ReviewStatus,
+                l.PullRequest.CheckStatus,
+                l.PullRequest.HtmlUrl,
+                l.PullRequest.OpenedAtUtc
+            })
+            .ToListAsync(cancellationToken);
+
+        var branchesByTask = branches.GroupBy(b => b.TaskId).ToDictionary(g => g.Key, g => g.ToList());
+        var prsByTask = prLinks.GroupBy(p => p.TaskId).ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.OpenedAtUtc).ToList());
+
+        var map = new Dictionary<Guid, TaskGitSummaryDto>();
+        foreach (var taskId in taskIds)
+        {
+            branchesByTask.TryGetValue(taskId, out var taskBranches);
+            prsByTask.TryGetValue(taskId, out var taskPrs);
+
+            if ((taskBranches == null || taskBranches.Count == 0) && (taskPrs == null || taskPrs.Count == 0))
+            {
+                continue;
+            }
+
+            var primaryPr = taskPrs?.FirstOrDefault(p => p.State == PullRequestStates.Open || p.State == PullRequestStates.Draft)
+                ?? taskPrs?.FirstOrDefault();
+            var primaryBranch = taskBranches?.FirstOrDefault();
+
+            map[taskId] = new TaskGitSummaryDto(
+                BranchCount: taskBranches?.Count ?? 0,
+                OpenPrCount: taskPrs?.Count(p => p.State == PullRequestStates.Open || p.State == PullRequestStates.Draft) ?? 0,
+                MergedPrCount: taskPrs?.Count(p => p.State == PullRequestStates.Merged) ?? 0,
+                PrimaryPrNumber: primaryPr?.PrNumber,
+                PrimaryPrState: primaryPr?.State,
+                PrimaryPrReviewStatus: primaryPr?.ReviewStatus,
+                PrimaryPrCheckStatus: primaryPr?.CheckStatus,
+                PrimaryPrUrl: primaryPr?.HtmlUrl,
+                PrimaryBranchName: primaryBranch?.BranchName,
+                PrimaryBranchUrl: primaryBranch?.BranchUrl
+            );
+        }
+
+        return map;
+    }
+
     private static TaskSummaryDto MapToSummary(
         TaskItem task,
         Project project,
-        IDictionary<Guid, (string DisplayName, string Email)> userMap)
+        IDictionary<Guid, (string DisplayName, string Email)> userMap,
+        TaskGitSummaryDto? gitSummary = null)
     {
         return new TaskSummaryDto(
             Id: task.Id,
@@ -582,7 +739,10 @@ public class TaskAppService : ITaskAppService
             Version: task.Version,
             CommentCount: task.Comments.Count,
             CreatedAtUtc: task.CreatedAtUtc,
-            UpdatedAtUtc: task.UpdatedAtUtc
+            UpdatedAtUtc: task.UpdatedAtUtc,
+            TaskNumber: task.TaskNumber,
+            TaskKey: task.TaskKey,
+            GitSummary: gitSummary
         );
     }
 
