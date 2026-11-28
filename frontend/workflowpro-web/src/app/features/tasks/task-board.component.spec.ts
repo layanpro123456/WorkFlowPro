@@ -8,6 +8,7 @@ import { TaskBoardComponent } from './task-board.component';
 import { TaskService } from '../../core/tasks/task.service';
 import { ProjectService } from '../../core/projects/project.service';
 import { GitService } from '../../core/git/git.service';
+import { SprintService } from '../../core/sprints/sprint.service';
 import { TaskSummary } from '../../core/tasks/task.models';
 
 describe('TaskBoardComponent', () => {
@@ -16,6 +17,7 @@ describe('TaskBoardComponent', () => {
   let taskService: TaskService;
   let projectService: ProjectService;
   let gitService: GitService;
+  let sprintService: SprintService;
 
   const mockTasks: TaskSummary[] = [
     {
@@ -65,7 +67,10 @@ describe('TaskBoardComponent', () => {
     taskService = TestBed.inject(TaskService);
     projectService = TestBed.inject(ProjectService);
     gitService = TestBed.inject(GitService);
+    sprintService = TestBed.inject(SprintService);
     vi.spyOn(gitService, 'listProjectRepositories').mockReturnValue(of([]));
+    vi.spyOn(sprintService, 'listProjectSprints').mockReturnValue(of([]));
+    vi.spyOn(sprintService, 'getBoardConfigs').mockReturnValue(of([]));
   });
 
   it('loads projects and project tasks on init', () => {
@@ -172,5 +177,19 @@ describe('TaskBoardComponent', () => {
       repositoryId: 'repo-1',
       branchName: 'feat/CORE-1-task-1-in-backlog'
     }));
+  });
+
+  it('enforces WIP warning/exceeded indicators and drop predicate', () => {
+    component.boardConfigs.set([
+      { status: 'ToDo', displayOrder: 1, wipLimit: 1, isStrictWip: true, isVisible: true }
+    ]);
+    component.tasks.set(mockTasks);
+    expect(component.getWipLimit('ToDo')).toBe(1);
+    expect(component.isWipWarning('ToDo')).toBe(true);
+    expect(component.isWipExceeded('ToDo')).toBe(false);
+
+    const predicate = component.buildDropPredicate('Done');
+    expect(predicate({ data: mockTasks[0] } as any)).toBe(false);
+    expect(predicate({ data: { ...mockTasks[0], status: 'InProgress' } } as any)).toBe(true);
   });
 });

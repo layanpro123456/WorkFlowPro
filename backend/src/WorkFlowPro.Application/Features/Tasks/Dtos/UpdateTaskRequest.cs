@@ -7,5 +7,10 @@ public record UpdateTaskRequest(
     Guid? AssigneeId,
     DateTime? DueAtUtc,
     int? EstimateMinutes,
-    int Version
+    int Version,
+    string? IssueType = null,
+    int? StoryPoints = null,
+    Guid? EpicId = null,
+    Guid? ParentTaskId = null,
+    Guid? SprintId = null
 );

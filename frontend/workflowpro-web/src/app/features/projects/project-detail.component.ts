@@ -41,7 +41,8 @@ import { ProjectGitRepository, ProjectPullRequestSummary } from '../../core/git/
           </div>
 
           <div class="header-actions">
-            <a [routerLink]="['/projects', p.id, 'tasks']" class="btn-secondary">View Tasks</a>
+            <a [routerLink]="['/projects', p.id, 'backlog']" class="btn-secondary">Backlog &amp; Sprints</a>
+            <a [routerLink]="['/projects', p.id, 'tasks']" class="btn-secondary">Kanban Board</a>
             @if (canEdit()) {
               <button class="btn-secondary" (click)="openEditModal()">Edit Project</button>
             }

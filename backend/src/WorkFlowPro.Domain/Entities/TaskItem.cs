@@ -10,6 +10,9 @@ public class TaskItem : BaseEntity
     private readonly List<TaskStatusHistory> _statusHistory = new();
     private readonly List<TaskGitBranch> _gitBranches = new();
     private readonly List<TaskPullRequestLink> _pullRequestLinks = new();
+    private readonly List<TaskItem> _subtasks = new();
+    private readonly List<IssueLink> _outgoingLinks = new();
+    private readonly List<IssueLink> _incomingLinks = new();
 
     public Guid ProjectId { get; private set; }
     public int TaskNumber { get; private set; }
@@ -18,6 +21,12 @@ public class TaskItem : BaseEntity
     public string? Description { get; private set; }
     public string Status { get; private set; } = TaskStatuses.Backlog;
     public string Priority { get; private set; } = TaskPriorities.Normal;
+    public string IssueType { get; private set; } = IssueTypes.Task;
+    public int? StoryPoints { get; private set; }
+    public Guid? EpicId { get; private set; }
+    public Guid? ParentTaskId { get; private set; }
+    public Guid? SprintId { get; private set; }
+    public int BoardRank { get; private set; }
     public Guid? AssigneeId { get; private set; }
     public Guid CreatedById { get; private set; }
     public DateTime? DueAtUtc { get; private set; }
@@ -25,10 +34,16 @@ public class TaskItem : BaseEntity
     public int Version { get; private set; } = 1;
 
     public Project? Project { get; private set; }
+    public Sprint? Sprint { get; private set; }
+    public TaskItem? Epic { get; private set; }
+    public TaskItem? ParentTask { get; private set; }
     public IReadOnlyCollection<TaskComment> Comments => _comments.AsReadOnly();
     public IReadOnlyCollection<TaskStatusHistory> StatusHistory => _statusHistory.AsReadOnly();
     public IReadOnlyCollection<TaskGitBranch> GitBranches => _gitBranches.AsReadOnly();
     public IReadOnlyCollection<TaskPullRequestLink> PullRequestLinks => _pullRequestLinks.AsReadOnly();
+    public IReadOnlyCollection<TaskItem> Subtasks => _subtasks.AsReadOnly();
+    public IReadOnlyCollection<IssueLink> OutgoingLinks => _outgoingLinks.AsReadOnly();
+    public IReadOnlyCollection<IssueLink> IncomingLinks => _incomingLinks.AsReadOnly();
 
     private TaskItem() { } // For EF Core
 
@@ -41,7 +56,13 @@ public class TaskItem : BaseEntity
         Guid? assigneeId = null,
         DateTime? dueAtUtc = null,
         int? estimateMinutes = null,
-        string status = TaskStatuses.Backlog)
+        string status = TaskStatuses.Backlog,
+        string issueType = IssueTypes.Task,
+        int? storyPoints = null,
+        Guid? epicId = null,
+        Guid? parentTaskId = null,
+        Guid? sprintId = null,
+        int boardRank = 0)
     {
         if (projectId == Guid.Empty) throw new ArgumentException("ProjectId cannot be empty.", nameof(projectId));
         if (createdById == Guid.Empty) throw new ArgumentException("CreatedById cannot be empty.", nameof(createdById));
@@ -51,6 +72,7 @@ public class TaskItem : BaseEntity
         ValidatePriority(priority);
         ValidateStatus(status);
         ValidateEstimate(estimateMinutes);
+        ValidateIssueTypeAndPoints(issueType, storyPoints, epicId, parentTaskId, Guid.Empty);
 
         Id = Guid.NewGuid();
         ProjectId = projectId;
@@ -58,6 +80,12 @@ public class TaskItem : BaseEntity
         Description = description?.Trim();
         CreatedById = createdById;
         Priority = priority;
+        IssueType = IssueTypes.Normalize(issueType);
+        StoryPoints = storyPoints;
+        EpicId = string.Equals(IssueType, IssueTypes.Epic, StringComparison.OrdinalIgnoreCase) ? null : epicId;
+        ParentTaskId = string.Equals(IssueType, IssueTypes.Subtask, StringComparison.OrdinalIgnoreCase) ? parentTaskId : null;
+        SprintId = sprintId;
+        BoardRank = boardRank;
         AssigneeId = assigneeId;
         DueAtUtc = dueAtUtc;
         EstimateMinutes = estimateMinutes;
@@ -259,11 +287,102 @@ public class TaskItem : BaseEntity
         }
     }
 
+    public void SetAgileProperties(
+        string issueType,
+        int? storyPoints,
+        Guid? epicId,
+        Guid? parentTaskId,
+        Guid? sprintId)
+    {
+        ValidateIssueTypeAndPoints(issueType, storyPoints, epicId, parentTaskId, Id);
+
+        IssueType = IssueTypes.Normalize(issueType);
+        StoryPoints = storyPoints;
+        EpicId = string.Equals(IssueType, IssueTypes.Epic, StringComparison.OrdinalIgnoreCase) ? null : epicId;
+        ParentTaskId = string.Equals(IssueType, IssueTypes.Subtask, StringComparison.OrdinalIgnoreCase) ? parentTaskId : null;
+        SprintId = sprintId;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void AssignToSprint(Guid? sprintId, int? boardRank = null)
+    {
+        SprintId = sprintId;
+        if (boardRank.HasValue)
+        {
+            BoardRank = boardRank.Value;
+        }
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void SetBoardRank(int boardRank)
+    {
+        BoardRank = boardRank;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public TaskStatusHistory? MoveOnBoard(
+        string targetStatus,
+        int boardRank,
+        Guid changedById,
+        int expectedVersion,
+        string? comment = null)
+    {
+        EnsureVersion(expectedVersion);
+
+        if (string.Equals(Status, targetStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            BoardRank = boardRank;
+            Version++;
+            UpdatedAtUtc = DateTime.UtcNow;
+            return null;
+        }
+
+        BoardRank = boardRank;
+        return ChangeStatus(targetStatus, changedById, expectedVersion, comment);
+    }
+
     private static void ValidateEstimate(int? estimateMinutes)
     {
         if (estimateMinutes.HasValue && estimateMinutes.Value < 0)
         {
             throw new DomainException("Estimate minutes cannot be negative.");
+        }
+    }
+
+    private static void ValidateIssueTypeAndPoints(
+        string issueType,
+        int? storyPoints,
+        Guid? epicId,
+        Guid? parentTaskId,
+        Guid selfId)
+    {
+        if (!IssueTypes.IsValid(issueType))
+        {
+            throw new DomainException($"Invalid issue type '{issueType}'. Allowed values: {string.Join(", ", IssueTypes.All)}");
+        }
+        if (storyPoints.HasValue && storyPoints.Value < 0)
+        {
+            throw new DomainException("Story points cannot be negative.");
+        }
+        if (selfId != Guid.Empty && (epicId == selfId || parentTaskId == selfId))
+        {
+            throw new DomainException("An issue cannot reference itself as its Epic or Parent.");
+        }
+        if (string.Equals(issueType, IssueTypes.Epic, StringComparison.OrdinalIgnoreCase))
+        {
+            if (epicId.HasValue)
+            {
+                throw new DomainException("An Epic cannot belong to another Epic.");
+            }
+            if (parentTaskId.HasValue)
+            {
+                throw new DomainException("An Epic cannot have a parent task.");
+            }
+        }
+        if (string.Equals(issueType, IssueTypes.Subtask, StringComparison.OrdinalIgnoreCase) &&
+            (!parentTaskId.HasValue || parentTaskId.Value == Guid.Empty))
+        {
+            throw new DomainException("A Subtask must specify a ParentTaskId.");
         }
     }
 }

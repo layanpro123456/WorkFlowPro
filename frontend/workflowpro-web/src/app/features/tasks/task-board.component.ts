@@ -1,12 +1,15 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { CdkDrag, CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { ProjectService } from '../../core/projects/project.service';
 import { ProjectMember, ProjectSummary } from '../../core/projects/project.models';
 import { TaskService } from '../../core/tasks/task.service';
 import { GitService } from '../../core/git/git.service';
 import { ProjectGitRepository } from '../../core/git/git.models';
+import { SprintService } from '../../core/sprints/sprint.service';
+import { BoardColumnConfig, ISSUE_TYPES, IssueType, Sprint } from '../../core/sprints/sprint.models';
 import {
   ALLOWED_TASK_TRANSITIONS,
   CreateTaskRequest,
@@ -20,7 +23,7 @@ import {
 @Component({
   selector: 'app-task-board',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, DragDropModule],
   template: `
     <div class="tasks-page">
       <header class="page-header">
@@ -46,6 +49,18 @@ import {
               ☰ List View
             </button>
           </div>
+
+          <a
+            *ngIf="selectedProjectId()"
+            [routerLink]="['/projects', selectedProjectId(), 'backlog']"
+            class="reset-btn"
+            style="text-decoration:none; font-weight:600;">
+            🏃 Sprints &amp; Backlog
+          </a>
+
+          <button type="button" class="reset-btn" (click)="openWipConfigModal()" [disabled]="!selectedProjectId()">
+            ⚙ WIP Limits
+          </button>
 
           <button class="primary-btn" (click)="openCreateModal()" [disabled]="!selectedProjectId()">
             + New Task
@@ -98,6 +113,26 @@ import {
         </div>
 
         <div class="filter-group">
+          <label for="sprint-filter">Sprint</label>
+          <select id="sprint-filter" [(ngModel)]="sprintFilter" (change)="loadTasks()">
+            <option value="All">All Issues</option>
+            @for (sp of sprints(); track sp.id) {
+              <option [value]="sp.id">{{ sp.name }} ({{ sp.status }})</option>
+            }
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label for="type-filter">Issue Type</label>
+          <select id="type-filter" [(ngModel)]="issueTypeFilter" (change)="loadTasks()">
+            <option value="All">All Types</option>
+            @for (it of issueTypes; track it) {
+              <option [value]="it">{{ it }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="filter-group">
           <label for="pr-filter">Pull Request</label>
           <select id="pr-filter" [(ngModel)]="prFilter" (change)="loadTasks()">
             <option value="All">All Cards</option>
@@ -142,27 +177,61 @@ import {
         </div>
       } @else if (activeView() === 'board') {
         <!-- Kanban Board View -->
-        <div class="kanban-board">
-          @for (column of boardColumns; track column) {
+        <div class="kanban-board" cdkDropListGroup>
+          @for (column of visibleColumns(); track column) {
             <div class="kanban-column" [class]="'col-' + column.toLowerCase()">
               <div class="column-header">
                 <span class="column-title">{{ column }}</span>
-                <span class="badge count-badge">{{ getTasksForStatus(column).length }}</span>
+                <span
+                  class="wip-badge"
+                  [class.wip-warn]="isWipWarning(column)"
+                  [class.wip-over]="isWipExceeded(column)">
+                  {{ getTasksForStatus(column).length }}{{ getWipLimit(column) ? ' / ' + getWipLimit(column) : '' }}
+                </span>
               </div>
 
-              <div class="column-body">
+              <div
+                class="column-body"
+                cdkDropList
+                [cdkDropListData]="column"
+                [cdkDropListEnterPredicate]="buildDropPredicate(column)"
+                (cdkDropListDropped)="onBoardDrop($event, column)">
                 @for (task of getTasksForStatus(column); track task.id) {
-                  <article class="task-card" [class]="'priority-' + task.priority.toLowerCase()">
+                  <article class="task-card" [class]="'priority-' + task.priority.toLowerCase()" cdkDrag [cdkDragData]="task">
                     <div class="card-meta">
-                      <span class="project-tag">{{ task.taskKey || task.projectCode }}</span>
-                      <span class="priority-tag" [class]="'tag-' + task.priority.toLowerCase()">
-                        {{ task.priority }}
-                      </span>
+                      <div style="display:flex; align-items:center; gap:0.35rem; flex-wrap:wrap;">
+                        <span class="issue-type-badge" [class]="'type-' + (task.issueType || 'Task').toLowerCase()">
+                          {{ getIssueIcon(task.issueType) }} {{ task.issueType || 'Task' }}
+                        </span>
+                        <span class="project-tag">{{ task.taskKey || task.projectCode }}</span>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:0.3rem;">
+                        @if (task.storyPoints != null) {
+                          <span class="points-pill" title="Story Points">{{ task.storyPoints }}</span>
+                        }
+                        <span class="priority-tag" [class]="'tag-' + task.priority.toLowerCase()">
+                          {{ task.priority }}
+                        </span>
+                      </div>
                     </div>
 
                     <h3 class="task-title">
                       <a [routerLink]="['/tasks', task.id]">{{ task.title }}</a>
                     </h3>
+
+                    @if (task.epicKey || task.isBlockedByOpenIssue || (task.subtaskCount || 0) > 0) {
+                      <div class="card-git-badges">
+                        @if (task.epicKey) {
+                          <span class="epic-chip" [title]="task.epicTitle || task.epicKey">⚡ {{ task.epicKey }}</span>
+                        }
+                        @if ((task.subtaskCount || 0) > 0) {
+                          <span class="subtask-pill">↳ {{ task.completedSubtaskCount || 0 }}/{{ task.subtaskCount }}</span>
+                        }
+                        @if (task.isBlockedByOpenIssue) {
+                          <span class="blocked-pill">⛔ Blocked</span>
+                        }
+                      </div>
+                    }
 
                     @if (task.gitSummary; as git) {
                       <div class="card-git-badges">
@@ -367,6 +436,50 @@ import {
 
               <div class="form-row">
                 <div class="form-group">
+                  <label for="new-issue-type">Issue Type</label>
+                  <select id="new-issue-type" [(ngModel)]="createModel.issueType" name="issueType">
+                    @for (it of boardIssueTypes; track it) {
+                      <option [value]="it">{{ it }}</option>
+                    }
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="new-points">Story Points</label>
+                  <input
+                    id="new-points"
+                    type="number"
+                    min="0"
+                    [(ngModel)]="createModel.storyPoints"
+                    name="storyPoints"
+                    placeholder="e.g. 3" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="new-epic">Epic</label>
+                  <select id="new-epic" [(ngModel)]="createModel.epicId" name="epicId" [disabled]="createModel.issueType === 'Epic'">
+                    <option [ngValue]="null">None</option>
+                    @for (ep of epics(); track ep.id) {
+                      <option [value]="ep.id">{{ ep.taskKey }} — {{ ep.title }}</option>
+                    }
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="new-sprint">Sprint</label>
+                  <select id="new-sprint" [(ngModel)]="createModel.sprintId" name="sprintId" [disabled]="createModel.issueType === 'Epic'">
+                    <option [ngValue]="null">Product Backlog</option>
+                    @for (sp of openSprints(); track sp.id) {
+                      <option [value]="sp.id">{{ sp.name }} ({{ sp.status }})</option>
+                    }
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
                   <label for="new-priority">Priority *</label>
                   <select id="new-priority" [(ngModel)]="createModel.priority" name="priority" required>
                     @for (p of taskPriorities; track p) {
@@ -473,6 +586,39 @@ import {
                 <button type="submit" class="primary-btn" [disabled]="isCreatingBranch()">
                   {{ isCreatingBranch() ? 'Creating Branch...' : 'Create Branch' }}
                 </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      }
+      <!-- WIP Config Modal -->
+      @if (showWipModal()) {
+        <div class="modal-backdrop" (click)="showWipModal.set(false)">
+          <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+            <header class="modal-header">
+              <h2>Kanban Column WIP Limits</h2>
+              <button class="modal-close" (click)="showWipModal.set(false)">✕</button>
+            </header>
+            <form (ngSubmit)="onSaveWipConfigs()" class="modal-form">
+              @for (col of wipDraft(); track col.status) {
+                <div class="form-row" style="align-items:center;">
+                  <strong style="width:110px; font-size:0.85rem;">{{ col.status }}</strong>
+                  <div class="form-group">
+                    <input type="number" min="1" [(ngModel)]="col.wipLimit" [name]="'wip-' + col.status" placeholder="No limit" />
+                  </div>
+                  <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.8rem;">
+                    <input type="checkbox" [(ngModel)]="col.isStrictWip" [name]="'strict-' + col.status" />
+                    Strict block
+                  </label>
+                  <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.8rem;">
+                    <input type="checkbox" [(ngModel)]="col.isVisible" [name]="'vis-' + col.status" />
+                    Visible
+                  </label>
+                </div>
+              }
+              <footer class="modal-footer">
+                <button type="button" class="btn-cancel" (click)="showWipModal.set(false)">Cancel</button>
+                <button type="submit" class="primary-btn">Save WIP Limits</button>
               </footer>
             </form>
           </div>
@@ -932,11 +1078,14 @@ export class TaskBoardComponent implements OnInit {
   private readonly projectService = inject(ProjectService);
   private readonly taskService = inject(TaskService);
   private readonly gitService = inject(GitService);
+  private readonly sprintService = inject(SprintService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   readonly taskStatuses = TASK_STATUSES;
   readonly taskPriorities = TASK_PRIORITIES;
+  readonly issueTypes = ISSUE_TYPES;
+  readonly boardIssueTypes: IssueType[] = ISSUE_TYPES.filter(t => t !== 'Subtask');
   readonly boardColumns: TaskStatus[] = ['Backlog', 'ToDo', 'InProgress', 'InReview', 'Blocked', 'Done', 'Cancelled'];
 
   activeView = signal<'board' | 'list'>('board');
@@ -944,16 +1093,35 @@ export class TaskBoardComponent implements OnInit {
   selectedProjectId = signal<string>('');
   projectMembers = signal<ProjectMember[]>([]);
   projectRepos = signal<ProjectGitRepository[]>([]);
+  sprints = signal<Sprint[]>([]);
+  boardConfigs = signal<BoardColumnConfig[]>([]);
   tasks = signal<TaskSummary[]>([]);
   isLoading = signal<boolean>(false);
   isTransitioning = signal<string | null>(null);
   errorMessage = signal<string>('');
   successMessage = signal<string>('');
 
+  visibleColumns = computed<TaskStatus[]>(() => {
+    const cfgs = this.boardConfigs();
+    if (cfgs.length === 0) return this.boardColumns;
+    return cfgs
+      .filter(c => c.isVisible)
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+      .map(c => c.status as TaskStatus);
+  });
+
+  epics = computed(() => this.tasks().filter(t => t.issueType === 'Epic'));
+  openSprints = computed(() => this.sprints().filter(s => s.status !== 'Closed'));
+
   searchQuery = '';
   statusFilter = 'All';
   priorityFilter = 'All';
   prFilter = 'All';
+  sprintFilter = 'All';
+  issueTypeFilter = 'All';
+
+  showWipModal = signal<boolean>(false);
+  wipDraft = signal<BoardColumnConfig[]>([]);
 
   // Modal State
   showCreateModal = signal<boolean>(false);
@@ -964,7 +1132,11 @@ export class TaskBoardComponent implements OnInit {
     description: '',
     priority: 'Normal',
     assigneeId: null,
-    estimateMinutes: null
+    estimateMinutes: null,
+    issueType: 'Task',
+    storyPoints: null,
+    epicId: null,
+    sprintId: null
   };
   createModelDueDate = '';
 
@@ -998,6 +1170,7 @@ export class TaskBoardComponent implements OnInit {
         if (this.selectedProjectId()) {
           this.loadProjectMembers(this.selectedProjectId());
           this.loadProjectRepos(this.selectedProjectId());
+          this.loadAgileContext(this.selectedProjectId());
           this.loadTasks();
         }
       },
@@ -1009,9 +1182,22 @@ export class TaskBoardComponent implements OnInit {
 
   onProjectSelected(projectId: string): void {
     this.selectedProjectId.set(projectId);
+    this.sprintFilter = 'All';
     this.loadProjectMembers(projectId);
     this.loadProjectRepos(projectId);
+    this.loadAgileContext(projectId);
     this.loadTasks();
+  }
+
+  loadAgileContext(projectId: string): void {
+    this.sprintService.listProjectSprints(projectId).subscribe({
+      next: (sprints) => this.sprints.set(sprints),
+      error: () => this.sprints.set([])
+    });
+    this.sprintService.getBoardConfigs(projectId).subscribe({
+      next: (cfgs) => this.boardConfigs.set(cfgs),
+      error: () => this.boardConfigs.set([])
+    });
   }
 
   loadProjectMembers(projectId: string): void {
@@ -1040,6 +1226,8 @@ export class TaskBoardComponent implements OnInit {
       priority: this.priorityFilter !== 'All' ? this.priorityFilter : undefined,
       search: this.searchQuery.trim() || undefined,
       prState: this.prFilter !== 'All' ? this.prFilter : undefined,
+      sprintId: this.sprintFilter !== 'All' ? this.sprintFilter : undefined,
+      issueType: this.issueTypeFilter !== 'All' ? this.issueTypeFilter : undefined,
       page: 1,
       pageSize: 100
     }).subscribe({
@@ -1059,15 +1247,114 @@ export class TaskBoardComponent implements OnInit {
     this.statusFilter = 'All';
     this.priorityFilter = 'All';
     this.prFilter = 'All';
+    this.sprintFilter = 'All';
+    this.issueTypeFilter = 'All';
     this.loadTasks();
   }
 
   getTasksForStatus(status: TaskStatus): TaskSummary[] {
-    return this.tasks().filter(t => t.status === status);
+    return this.tasks()
+      .filter(t => t.status === status)
+      .sort((a, b) => (a.boardRank ?? 0) - (b.boardRank ?? 0));
   }
 
   getAllowedTransitions(currentStatus: TaskStatus): TaskStatus[] {
     return ALLOWED_TASK_TRANSITIONS[currentStatus] || [];
+  }
+
+  buildDropPredicate(targetColumn: TaskStatus): (drag: CdkDrag<TaskSummary>) => boolean {
+    return (drag: CdkDrag<TaskSummary>) => {
+      const task = drag.data;
+      if (!task) return false;
+      if (task.status === targetColumn) return true;
+      return this.getAllowedTransitions(task.status).includes(targetColumn);
+    };
+  }
+
+  onBoardDrop(event: CdkDragDrop<TaskStatus>, targetColumn: TaskStatus): void {
+    const task = event.item.data as TaskSummary;
+    if (!task) return;
+    if (task.status === targetColumn && event.previousIndex === event.currentIndex) return;
+
+    if (task.status !== targetColumn && !this.getAllowedTransitions(task.status).includes(targetColumn)) {
+      this.errorMessage.set(`Transition from ${task.status} to ${targetColumn} is not allowed.`);
+      return;
+    }
+
+    const targetRank = (event.currentIndex + 1) * 100;
+    this.isTransitioning.set(task.id);
+    this.errorMessage.set('');
+
+    this.taskService.moveOnBoard(task.id, {
+      targetStatus: targetColumn,
+      boardRank: targetRank,
+      version: task.version
+    }).subscribe({
+      next: (updated) => {
+        this.tasks.update(list => list.map(t => t.id === updated.id ? updated : t));
+        this.successMessage.set(`Moved ${updated.taskKey || updated.title} to ${targetColumn}.`);
+        this.isTransitioning.set(null);
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.detail || 'Failed to move card.');
+        this.isTransitioning.set(null);
+        this.loadTasks();
+      }
+    });
+  }
+
+  getWipLimit(status: TaskStatus): number | null {
+    return this.boardConfigs().find(c => c.status === status)?.wipLimit ?? null;
+  }
+
+  isWipWarning(status: TaskStatus): boolean {
+    const limit = this.getWipLimit(status);
+    if (!limit) return false;
+    return this.getTasksForStatus(status).length === limit;
+  }
+
+  isWipExceeded(status: TaskStatus): boolean {
+    const limit = this.getWipLimit(status);
+    if (!limit) return false;
+    return this.getTasksForStatus(status).length > limit;
+  }
+
+  openWipConfigModal(): void {
+    const existing = this.boardConfigs();
+    const draft = existing.length > 0
+      ? existing.map(c => ({ ...c }))
+      : this.boardColumns.map((s, idx) => ({
+          status: s,
+          displayOrder: idx,
+          wipLimit: null,
+          isStrictWip: false,
+          isVisible: true
+        }));
+    this.wipDraft.set(draft);
+    this.showWipModal.set(true);
+  }
+
+  onSaveWipConfigs(): void {
+    const projectId = this.selectedProjectId();
+    if (!projectId) return;
+    this.sprintService.updateBoardConfigs(projectId, this.wipDraft()).subscribe({
+      next: (updated) => {
+        this.boardConfigs.set(updated);
+        this.showWipModal.set(false);
+        this.successMessage.set('Board WIP limits saved.');
+      },
+      error: (err) => this.errorMessage.set(err.error?.detail || 'Failed to save WIP limits.')
+    });
+  }
+
+  getIssueIcon(type?: string): string {
+    switch (type) {
+      case 'Epic': return '⚡';
+      case 'Story': return '📘';
+      case 'Bug': return '🐞';
+      case 'Subtask': return '↳';
+      default: return '☑️';
+    }
   }
 
   onQuickTransition(task: TaskSummary, event: Event): void {
@@ -1108,7 +1395,11 @@ export class TaskBoardComponent implements OnInit {
       description: '',
       priority: 'Normal',
       assigneeId: null,
-      estimateMinutes: null
+      estimateMinutes: null,
+      issueType: 'Task',
+      storyPoints: null,
+      epicId: null,
+      sprintId: null
     };
     this.createModelDueDate = '';
     this.showCreateModal.set(true);

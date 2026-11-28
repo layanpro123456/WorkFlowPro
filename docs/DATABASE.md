@@ -84,6 +84,12 @@ Indexes: user_id, project_id/project_role.
 - description text nullable
 - status varchar(20)
 - priority varchar(20)
+- issue_type varchar(20) not null default 'Task' (`Epic`, `Story`, `Task`, `Bug`, `Subtask`)
+- story_points integer nullable
+- epic_id UUID FK Tasks nullable (set null)
+- parent_task_id UUID FK Tasks nullable (restrict)
+- sprint_id UUID FK Sprints nullable (set null)
+- board_rank integer not null default 1000
 - assignee_id UUID FK AspNetUsers nullable
 - created_by UUID FK AspNetUsers
 - due_at timestamptz nullable
@@ -91,8 +97,49 @@ Indexes: user_id, project_id/project_role.
 - version integer not null default 1
 - created_at, updated_at timestamptz
 
-Indexes: unique(project_id, task_number) where task_number > 0, task_key, project_id/status, assignee_id/status, due_at, created_at.
-Constraints: estimate_minutes >= 0; valid status/priority via application and optionally DB check constraints.
+Indexes: unique(project_id, task_number) where task_number > 0, task_key, project_id/status, sprint_id, epic_id, parent_task_id, assignee_id/status, due_at, created_at.
+Constraints: estimate_minutes >= 0; story_points >= 0; valid status/priority/issue_type via application invariants.
+
+### Sprints (`sprints`)
+- id UUID PK
+- project_id UUID FK Projects (cascade)
+- name varchar(100)
+- goal varchar(500) nullable
+- status varchar(20) (`Planned`, `Active`, `Closed`)
+- start_date_utc timestamptz nullable, end_date_utc timestamptz nullable, completed_at_utc timestamptz nullable
+- created_by_id UUID FK AspNetUsers (restrict)
+- created_at_utc, updated_at_utc timestamptz
+
+Indexes: project_id, unique(project_id) where status = 'Active'.
+
+### IssueLinks (`issue_links`)
+- id UUID PK
+- source_task_id UUID FK Tasks (cascade)
+- target_task_id UUID FK Tasks (cascade)
+- link_type varchar(30) (`Blocks`, `RelatesTo`, `Duplicates`)
+- created_by_id UUID FK AspNetUsers (restrict)
+- created_at_utc timestamptz
+
+Indexes: unique(source_task_id, target_task_id, link_type), target_task_id.
+
+### ProjectBoardColumnConfigs (`project_board_column_configs`)
+- id UUID PK
+- project_id UUID FK Projects (cascade)
+- status varchar(30)
+- wip_limit integer nullable
+- is_strict_wip boolean not null default false
+- is_visible boolean not null default true
+- display_order integer not null default 0
+
+Indexes: unique(project_id, status).
+
+### SprintBurndownSnapshots (`sprint_burndown_snapshots`)
+- id UUID PK
+- sprint_id UUID FK Sprints (cascade)
+- snapshot_date_utc timestamptz
+- total_points integer, remaining_points integer, completed_points integer, remaining_task_count integer
+
+Indexes: unique(sprint_id, snapshot_date_utc).
 
 ### ProjectGitRepositories (`project_git_repositories`)
 - id UUID PK

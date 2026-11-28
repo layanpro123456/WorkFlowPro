@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WorkFlowPro.Application.Common.Models;
+using WorkFlowPro.Application.Features.Sprints.Dtos;
+using WorkFlowPro.Application.Features.Sprints.Services;
 using WorkFlowPro.Application.Features.Tasks.Dtos;
 using WorkFlowPro.Application.Features.Tasks.Services;
 
@@ -12,10 +14,12 @@ namespace WorkFlowPro.Api.Controllers;
 public class TasksController : ControllerBase
 {
     private readonly ITaskAppService _taskService;
+    private readonly ISprintAppService _sprintService;
 
-    public TasksController(ITaskAppService taskService)
+    public TasksController(ITaskAppService taskService, ISprintAppService sprintService)
     {
         _taskService = taskService;
+        _sprintService = sprintService;
     }
 
     [HttpGet("projects/{projectId:guid}/tasks")]
@@ -31,10 +35,15 @@ public class TasksController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? prState = null,
+        [FromQuery] Guid? sprintId = null,
+        [FromQuery] string? issueType = null,
+        [FromQuery] Guid? epicId = null,
+        [FromQuery] bool? backlogOnly = null,
         CancellationToken cancellationToken = default)
     {
         var result = await _taskService.GetProjectTasksAsync(
-            projectId, status, priority, assigneeId, search, page, pageSize, cancellationToken, prState);
+            projectId, status, priority, assigneeId, search, page, pageSize, cancellationToken,
+            prState, sprintId, issueType, epicId, backlogOnly);
 
         return Ok(result);
     }
@@ -94,6 +103,58 @@ public class TasksController : ControllerBase
     {
         var result = await _taskService.ChangeStatusAsync(taskId, request, cancellationToken);
         return Ok(result);
+    }
+
+    [HttpPatch("tasks/{taskId:guid}/move")]
+    [ProducesResponseType(typeof(TaskSummaryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<TaskSummaryDto>> MoveOnBoard(
+        [FromRoute] Guid taskId,
+        [FromBody] MoveTaskOnBoardRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _taskService.MoveOnBoardAsync(taskId, request, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPatch("tasks/{taskId:guid}/sprint")]
+    [ProducesResponseType(typeof(TaskSummaryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TaskSummaryDto>> AssignSprint(
+        [FromRoute] Guid taskId,
+        [FromBody] AssignTaskSprintRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _taskService.AssignSprintAsync(taskId, request, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("tasks/{taskId:guid}/links")]
+    [ProducesResponseType(typeof(IssueLinkDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IssueLinkDto>> CreateLink(
+        [FromRoute] Guid taskId,
+        [FromBody] CreateIssueLinkRequest request,
+        CancellationToken cancellationToken)
+    {
+        var link = await _sprintService.CreateIssueLinkAsync(taskId, request, cancellationToken);
+        return CreatedAtAction(nameof(GetById), new { taskId }, link);
+    }
+
+    [HttpDelete("tasks/{taskId:guid}/links/{linkId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteLink(
+        [FromRoute] Guid taskId,
+        [FromRoute] Guid linkId,
+        CancellationToken cancellationToken)
+    {
+        await _sprintService.DeleteIssueLinkAsync(taskId, linkId, cancellationToken);
+        return NoContent();
     }
 
     [HttpPost("tasks/{taskId:guid}/comments")]

@@ -25,5 +25,14 @@ public class UpdateTaskRequestValidator : AbstractValidator<UpdateTaskRequest>
         RuleFor(x => x.Version)
             .GreaterThan(0)
             .WithMessage("Version must be greater than zero.");
+
+        RuleFor(x => x.IssueType)
+            .Must(t => string.IsNullOrWhiteSpace(t) || IssueTypes.IsValid(t))
+            .WithMessage($"IssueType must be one of: {string.Join(", ", IssueTypes.All)}");
+
+        RuleFor(x => x.StoryPoints)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.StoryPoints.HasValue)
+            .WithMessage("Story points cannot be negative.");
     }
 }

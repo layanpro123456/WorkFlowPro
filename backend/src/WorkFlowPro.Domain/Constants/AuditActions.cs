@@ -32,4 +32,11 @@ public static class AuditActions
     public const string GitPullRequestLinked = "GitPullRequestLinked";
     public const string GitPullRequestUnlinked = "GitPullRequestUnlinked";
     public const string GitWebhookProcessed = "GitWebhookProcessed";
+
+    public const string SprintCreated = "SprintCreated";
+    public const string SprintStarted = "SprintStarted";
+    public const string SprintCompleted = "SprintCompleted";
+    public const string IssueLinkCreated = "IssueLinkCreated";
+    public const string IssueLinkDeleted = "IssueLinkDeleted";
+    public const string BoardConfigUpdated = "BoardConfigUpdated";
 }

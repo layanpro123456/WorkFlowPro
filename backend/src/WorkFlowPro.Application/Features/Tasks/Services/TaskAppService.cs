@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using WorkFlowPro.Application.Common.Interfaces;
 using WorkFlowPro.Application.Common.Models;
 using WorkFlowPro.Application.Features.Git.Dtos;
+using WorkFlowPro.Application.Features.Sprints.Dtos;
+using WorkFlowPro.Application.Features.Sprints.Services;
 using WorkFlowPro.Application.Features.Tasks.Dtos;
 using WorkFlowPro.Domain.Constants;
 using WorkFlowPro.Domain.Entities;
@@ -15,27 +17,33 @@ public class TaskAppService : ITaskAppService
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly IIdentityService _identityService;
+    private readonly ISprintAppService _sprintService;
     private readonly IValidator<CreateTaskRequest> _createValidator;
     private readonly IValidator<UpdateTaskRequest> _updateValidator;
     private readonly IValidator<ChangeTaskStatusRequest> _statusValidator;
     private readonly IValidator<AddTaskCommentRequest> _commentValidator;
+    private readonly IValidator<MoveTaskOnBoardRequest> _moveValidator;
 
     public TaskAppService(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
         IIdentityService identityService,
+        ISprintAppService sprintService,
         IValidator<CreateTaskRequest> createValidator,
         IValidator<UpdateTaskRequest> updateValidator,
         IValidator<ChangeTaskStatusRequest> statusValidator,
-        IValidator<AddTaskCommentRequest> commentValidator)
+        IValidator<AddTaskCommentRequest> commentValidator,
+        IValidator<MoveTaskOnBoardRequest> moveValidator)
     {
         _context = context;
         _currentUserService = currentUserService;
         _identityService = identityService;
+        _sprintService = sprintService;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _statusValidator = statusValidator;
         _commentValidator = commentValidator;
+        _moveValidator = moveValidator;
     }
 
     public async Task<TaskSummaryDto> CreateAsync(
@@ -66,6 +74,20 @@ public class TaskAppService : ITaskAppService
             ? request.Status
             : TaskStatuses.Backlog;
 
+        await ValidateAgileReferencesAsync(
+            projectId,
+            request.IssueType,
+            request.EpicId,
+            request.ParentTaskId,
+            request.SprintId,
+            selfId: Guid.Empty,
+            cancellationToken);
+
+        var maxRank = await _context.Tasks
+            .Where(t => t.ProjectId == projectId && t.Status == initialStatus)
+            .Select(t => (int?)t.BoardRank)
+            .MaxAsync(cancellationToken) ?? 0;
+
         var task = new TaskItem(
             projectId: projectId,
             title: request.Title,
@@ -75,7 +97,13 @@ public class TaskAppService : ITaskAppService
             assigneeId: request.AssigneeId,
             dueAtUtc: request.DueAtUtc,
             estimateMinutes: request.EstimateMinutes,
-            status: initialStatus
+            status: initialStatus,
+            issueType: request.IssueType,
+            storyPoints: request.StoryPoints,
+            epicId: request.EpicId,
+            parentTaskId: request.ParentTaskId,
+            sprintId: request.SprintId,
+            boardRank: maxRank + 100
         );
 
         var maxTaskNumber = await _context.Tasks
@@ -101,9 +129,14 @@ public class TaskAppService : ITaskAppService
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        if (task.SprintId.HasValue)
+        {
+            await _sprintService.RecordActiveSprintSnapshotAsync(task.SprintId.Value, cancellationToken);
+        }
+
         var userMap = await GetUserMapAsync(new[] { callerId, request.AssigneeId ?? Guid.Empty }, cancellationToken);
 
-        return MapToSummary(task, project, userMap);
+        return await MapToSummaryWithContextAsync(task, project, userMap, cancellationToken);
     }
 
     public async Task<PagedResult<TaskSummaryDto>> GetProjectTasksAsync(
@@ -115,7 +148,11 @@ public class TaskAppService : ITaskAppService
         int page,
         int pageSize,
         CancellationToken cancellationToken,
-        string? prState = null)
+        string? prState = null,
+        Guid? sprintId = null,
+        string? issueType = null,
+        Guid? epicId = null,
+        bool? backlogOnly = null)
     {
         var callerId = RequireCallerId();
         var project = await GetAuthorizedProjectAsync(projectId, callerId, cancellationToken);
@@ -140,6 +177,25 @@ public class TaskAppService : ITaskAppService
         if (assigneeId.HasValue)
         {
             query = query.Where(t => t.AssigneeId == assigneeId.Value);
+        }
+
+        if (sprintId.HasValue)
+        {
+            query = query.Where(t => t.SprintId == sprintId.Value);
+        }
+        else if (backlogOnly == true)
+        {
+            query = query.Where(t => t.SprintId == null && t.IssueType != IssueTypes.Epic);
+        }
+
+        if (!string.IsNullOrWhiteSpace(issueType) && !string.Equals(issueType, "All", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(t => t.IssueType == issueType);
+        }
+
+        if (epicId.HasValue)
+        {
+            query = query.Where(t => t.EpicId == epicId.Value);
         }
 
         if (!string.IsNullOrWhiteSpace(prState) && !string.Equals(prState, "All", StringComparison.OrdinalIgnoreCase))
@@ -172,7 +228,8 @@ public class TaskAppService : ITaskAppService
         var totalCount = await query.CountAsync(cancellationToken);
 
         var tasks = await query
-            .OrderByDescending(t => t.CreatedAtUtc)
+            .OrderBy(t => t.BoardRank)
+            .ThenByDescending(t => t.CreatedAtUtc)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(t => new
@@ -184,6 +241,23 @@ public class TaskAppService : ITaskAppService
                 t.Title,
                 t.Status,
                 t.Priority,
+                t.IssueType,
+                t.StoryPoints,
+                t.EpicId,
+                EpicKey = t.Epic != null ? t.Epic.TaskKey : null,
+                EpicTitle = t.Epic != null ? t.Epic.Title : null,
+                t.ParentTaskId,
+                ParentTaskKey = t.ParentTask != null ? t.ParentTask.TaskKey : null,
+                t.SprintId,
+                SprintName = t.Sprint != null ? t.Sprint.Name : null,
+                t.BoardRank,
+                SubtaskCount = t.Subtasks.Count,
+                CompletedSubtaskCount = t.Subtasks.Count(st => st.Status == TaskStatuses.Done),
+                IsBlockedByOpenIssue = t.IncomingLinks.Any(l =>
+                    l.LinkType == IssueLinkTypes.Blocks &&
+                    l.SourceTask != null &&
+                    l.SourceTask.Status != TaskStatuses.Done &&
+                    l.SourceTask.Status != TaskStatuses.Cancelled),
                 t.AssigneeId,
                 t.CreatedById,
                 t.DueAtUtc,
@@ -222,7 +296,20 @@ public class TaskAppService : ITaskAppService
             UpdatedAtUtc: t.UpdatedAtUtc,
             TaskNumber: t.TaskNumber,
             TaskKey: t.TaskKey,
-            GitSummary: gitSummaryMap.TryGetValue(t.Id, out var gs) ? gs : null
+            GitSummary: gitSummaryMap.TryGetValue(t.Id, out var gs) ? gs : null,
+            IssueType: t.IssueType,
+            StoryPoints: t.StoryPoints,
+            EpicId: t.EpicId,
+            EpicKey: t.EpicKey,
+            EpicTitle: t.EpicTitle,
+            ParentTaskId: t.ParentTaskId,
+            ParentTaskKey: t.ParentTaskKey,
+            SprintId: t.SprintId,
+            SprintName: t.SprintName,
+            BoardRank: t.BoardRank,
+            SubtaskCount: t.SubtaskCount,
+            CompletedSubtaskCount: t.CompletedSubtaskCount,
+            IsBlockedByOpenIssue: t.IsBlockedByOpenIssue
         )).ToList();
 
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
@@ -236,6 +323,14 @@ public class TaskAppService : ITaskAppService
         var task = await _context.Tasks
             .Include(t => t.Project)
                 .ThenInclude(p => p!.Members)
+            .Include(t => t.Epic)
+            .Include(t => t.ParentTask)
+            .Include(t => t.Sprint)
+            .Include(t => t.Subtasks)
+            .Include(t => t.OutgoingLinks)
+                .ThenInclude(l => l.TargetTask)
+            .Include(t => t.IncomingLinks)
+                .ThenInclude(l => l.SourceTask)
             .Include(t => t.Comments)
             .Include(t => t.StatusHistory)
             .Include(t => t.GitBranches)
@@ -256,6 +351,7 @@ public class TaskAppService : ITaskAppService
         if (task.AssigneeId.HasValue) userIds.Add(task.AssigneeId.Value);
         userIds.AddRange(task.Comments.Select(c => c.AuthorId));
         userIds.AddRange(task.StatusHistory.Select(h => h.ChangedById));
+        userIds.AddRange(task.Subtasks.Where(st => st.AssigneeId.HasValue).Select(st => st.AssigneeId!.Value));
 
         var userMap = await GetUserMapAsync(userIds.Distinct(), cancellationToken);
 
@@ -328,6 +424,38 @@ public class TaskAppService : ITaskAppService
                 );
             }).ToList();
 
+        var subtasks = task.Subtasks
+            .OrderBy(st => st.TaskNumber)
+            .Select(st => MapToSummary(st, task.Project, userMap))
+            .ToList();
+
+        var links = task.OutgoingLinks
+            .Where(l => l.TargetTask != null)
+            .Select(l => new IssueLinkDto(
+                Id: l.Id,
+                LinkType: l.LinkType,
+                DisplayRelation: l.LinkType.ToLowerInvariant(),
+                RelatedTaskId: l.TargetTask!.Id,
+                RelatedTaskKey: l.TargetTask.TaskKey,
+                RelatedTaskTitle: l.TargetTask.Title,
+                RelatedTaskStatus: l.TargetTask.Status,
+                RelatedTaskIssueType: l.TargetTask.IssueType,
+                CreatedAtUtc: l.CreatedAtUtc))
+            .Concat(task.IncomingLinks
+                .Where(l => l.SourceTask != null)
+                .Select(l => new IssueLinkDto(
+                    Id: l.Id,
+                    LinkType: l.LinkType,
+                    DisplayRelation: IssueLinkTypes.GetInverseLabel(l.LinkType),
+                    RelatedTaskId: l.SourceTask!.Id,
+                    RelatedTaskKey: l.SourceTask.TaskKey,
+                    RelatedTaskTitle: l.SourceTask.Title,
+                    RelatedTaskStatus: l.SourceTask.Status,
+                    RelatedTaskIssueType: l.SourceTask.IssueType,
+                    CreatedAtUtc: l.CreatedAtUtc)))
+            .OrderBy(l => l.CreatedAtUtc)
+            .ToList();
+
         return new TaskDetailDto(
             Id: task.Id,
             ProjectId: task.ProjectId,
@@ -351,7 +479,19 @@ public class TaskAppService : ITaskAppService
             TaskNumber: task.TaskNumber,
             TaskKey: task.TaskKey,
             Branches: branches,
-            PullRequests: pullRequests
+            PullRequests: pullRequests,
+            IssueType: task.IssueType,
+            StoryPoints: task.StoryPoints,
+            EpicId: task.EpicId,
+            EpicKey: task.Epic?.TaskKey,
+            EpicTitle: task.Epic?.Title,
+            ParentTaskId: task.ParentTaskId,
+            ParentTaskKey: task.ParentTask?.TaskKey,
+            SprintId: task.SprintId,
+            SprintName: task.Sprint?.Name,
+            BoardRank: task.BoardRank,
+            Subtasks: subtasks,
+            Links: links
         );
     }
 
@@ -390,6 +530,18 @@ public class TaskAppService : ITaskAppService
             await ValidateAssigneeAsync(task.Project, request.AssigneeId.Value, cancellationToken);
         }
 
+        var effectiveIssueType = string.IsNullOrWhiteSpace(request.IssueType) ? task.IssueType : request.IssueType;
+        var previousSprintId = task.SprintId;
+
+        await ValidateAgileReferencesAsync(
+            task.ProjectId,
+            effectiveIssueType,
+            request.EpicId,
+            request.ParentTaskId,
+            request.SprintId,
+            selfId: task.Id,
+            cancellationToken);
+
         task.UpdateDetails(
             title: request.Title,
             description: request.Description,
@@ -400,6 +552,13 @@ public class TaskAppService : ITaskAppService
             expectedVersion: request.Version
         );
 
+        task.SetAgileProperties(
+            effectiveIssueType,
+            request.StoryPoints,
+            request.EpicId,
+            request.ParentTaskId,
+            request.SprintId);
+
         try
         {
             await _context.SaveChangesAsync(cancellationToken);
@@ -409,9 +568,17 @@ public class TaskAppService : ITaskAppService
             throw new ConcurrencyException("Task has been modified by another operation. Please refresh.", ex);
         }
 
+        if (previousSprintId.HasValue)
+        {
+            await _sprintService.RecordActiveSprintSnapshotAsync(previousSprintId.Value, cancellationToken);
+        }
+        if (task.SprintId.HasValue && task.SprintId != previousSprintId)
+        {
+            await _sprintService.RecordActiveSprintSnapshotAsync(task.SprintId.Value, cancellationToken);
+        }
+
         var userMap = await GetUserMapAsync(new[] { task.CreatedById, task.AssigneeId ?? Guid.Empty }, cancellationToken);
-        var gitSummaryMap = await BuildGitSummaryMapAsync(new[] { task.Id }, cancellationToken);
-        return MapToSummary(task, task.Project, userMap, gitSummaryMap.GetValueOrDefault(task.Id));
+        return await MapToSummaryWithContextAsync(task, task.Project, userMap, cancellationToken);
     }
 
     public async Task<TaskSummaryDto> ChangeStatusAsync(
@@ -445,6 +612,8 @@ public class TaskAppService : ITaskAppService
             throw new DomainException("Cannot modify tasks in an archived project.");
         }
 
+        await EnsureWipLimitAllowsEntryAsync(task.ProjectId, request.Status, task.Id, cancellationToken);
+
         var history = task.ChangeStatus(
             newStatus: request.Status,
             changedById: callerId,
@@ -462,9 +631,139 @@ public class TaskAppService : ITaskAppService
             throw new ConcurrencyException("Task has been modified by another operation. Please refresh.", ex);
         }
 
+        if (task.SprintId.HasValue)
+        {
+            await _sprintService.RecordActiveSprintSnapshotAsync(task.SprintId.Value, cancellationToken);
+        }
+
         var userMap = await GetUserMapAsync(new[] { task.CreatedById, task.AssigneeId ?? Guid.Empty }, cancellationToken);
-        var gitSummaryMap = await BuildGitSummaryMapAsync(new[] { task.Id }, cancellationToken);
-        return MapToSummary(task, task.Project, userMap, gitSummaryMap.GetValueOrDefault(task.Id));
+        return await MapToSummaryWithContextAsync(task, task.Project, userMap, cancellationToken);
+    }
+
+    public async Task<TaskSummaryDto> MoveOnBoardAsync(
+        Guid taskId,
+        MoveTaskOnBoardRequest request,
+        CancellationToken cancellationToken)
+    {
+        var validationResult = await _moveValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            throw new ValidationException(validationResult.Errors);
+        }
+
+        var callerId = RequireCallerId();
+
+        var task = await _context.Tasks
+            .Include(t => t.Project)
+                .ThenInclude(p => p!.Members)
+            .Include(t => t.StatusHistory)
+            .FirstOrDefaultAsync(t => t.Id == taskId, cancellationToken);
+
+        if (task == null || task.Project == null)
+        {
+            throw new KeyNotFoundException($"Task {taskId} not found.");
+        }
+
+        EnsureUserCanAccessProject(task.Project, callerId);
+
+        if (task.Project.IsArchived)
+        {
+            throw new DomainException("Cannot modify tasks in an archived project.");
+        }
+
+        if (!string.Equals(task.Status, request.TargetStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            await EnsureWipLimitAllowsEntryAsync(task.ProjectId, request.TargetStatus, task.Id, cancellationToken);
+        }
+
+        var history = task.MoveOnBoard(
+            targetStatus: request.TargetStatus,
+            boardRank: request.BoardRank,
+            changedById: callerId,
+            expectedVersion: request.Version,
+            comment: request.Comment);
+
+        if (history != null)
+        {
+            _context.TaskStatusHistories.Add(history);
+        }
+
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new ConcurrencyException("Task has been modified by another operation. Please refresh.", ex);
+        }
+
+        if (history != null && task.SprintId.HasValue)
+        {
+            await _sprintService.RecordActiveSprintSnapshotAsync(task.SprintId.Value, cancellationToken);
+        }
+
+        var userMap = await GetUserMapAsync(new[] { task.CreatedById, task.AssigneeId ?? Guid.Empty }, cancellationToken);
+        return await MapToSummaryWithContextAsync(task, task.Project, userMap, cancellationToken);
+    }
+
+    public async Task<TaskSummaryDto> AssignSprintAsync(
+        Guid taskId,
+        AssignTaskSprintRequest request,
+        CancellationToken cancellationToken)
+    {
+        var callerId = RequireCallerId();
+
+        var task = await _context.Tasks
+            .Include(t => t.Project)
+                .ThenInclude(p => p!.Members)
+            .FirstOrDefaultAsync(t => t.Id == taskId, cancellationToken);
+
+        if (task == null || task.Project == null)
+        {
+            throw new KeyNotFoundException($"Task {taskId} not found.");
+        }
+
+        EnsureUserCanAccessProject(task.Project, callerId);
+
+        if (task.Project.IsArchived)
+        {
+            throw new DomainException("Cannot modify tasks in an archived project.");
+        }
+
+        if (string.Equals(task.IssueType, IssueTypes.Epic, StringComparison.OrdinalIgnoreCase) && request.SprintId.HasValue)
+        {
+            throw new DomainException("Epics span across sprints and cannot be assigned directly to a sprint.");
+        }
+
+        if (request.SprintId.HasValue)
+        {
+            var sprint = await _context.Sprints
+                .FirstOrDefaultAsync(s => s.Id == request.SprintId.Value && s.ProjectId == task.ProjectId, cancellationToken);
+            if (sprint == null)
+            {
+                throw new KeyNotFoundException($"Sprint {request.SprintId.Value} not found in this project.");
+            }
+            if (sprint.Status == SprintStatuses.Closed)
+            {
+                throw new DomainException("Cannot assign issues to a closed sprint.");
+            }
+        }
+
+        var previousSprintId = task.SprintId;
+        task.AssignToSprint(request.SprintId, request.BoardRank);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        if (previousSprintId.HasValue)
+        {
+            await _sprintService.RecordActiveSprintSnapshotAsync(previousSprintId.Value, cancellationToken);
+        }
+        if (task.SprintId.HasValue && task.SprintId != previousSprintId)
+        {
+            await _sprintService.RecordActiveSprintSnapshotAsync(task.SprintId.Value, cancellationToken);
+        }
+
+        var userMap = await GetUserMapAsync(new[] { task.CreatedById, task.AssigneeId ?? Guid.Empty }, cancellationToken);
+        return await MapToSummaryWithContextAsync(task, task.Project, userMap, cancellationToken);
     }
 
     public async Task<TaskCommentDto> AddCommentAsync(
@@ -716,11 +1015,172 @@ public class TaskAppService : ITaskAppService
         return map;
     }
 
+    private async Task ValidateAgileReferencesAsync(
+        Guid projectId,
+        string issueType,
+        Guid? epicId,
+        Guid? parentTaskId,
+        Guid? sprintId,
+        Guid selfId,
+        CancellationToken cancellationToken)
+    {
+        if (epicId.HasValue)
+        {
+            var epic = await _context.Tasks
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == epicId.Value && t.ProjectId == projectId, cancellationToken);
+            if (epic == null || !string.Equals(epic.IssueType, IssueTypes.Epic, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new DomainException("EpicId must reference an Epic in the same project.");
+            }
+        }
+
+        if (string.Equals(issueType, IssueTypes.Subtask, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!parentTaskId.HasValue || parentTaskId.Value == Guid.Empty)
+            {
+                throw new DomainException("A Subtask must specify a ParentTaskId.");
+            }
+            var parent = await _context.Tasks
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == parentTaskId.Value && t.ProjectId == projectId, cancellationToken);
+            if (parent == null)
+            {
+                throw new DomainException("ParentTaskId must reference a task in the same project.");
+            }
+            if (string.Equals(parent.IssueType, IssueTypes.Subtask, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(parent.IssueType, IssueTypes.Epic, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new DomainException("Subtasks can only be nested under a Story, Task, or Bug.");
+            }
+            if (selfId != Guid.Empty && parent.Id == selfId)
+            {
+                throw new DomainException("An issue cannot be its own parent.");
+            }
+        }
+
+        if (sprintId.HasValue)
+        {
+            if (string.Equals(issueType, IssueTypes.Epic, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new DomainException("Epics cannot be assigned directly to a sprint.");
+            }
+            var sprint = await _context.Sprints
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == sprintId.Value && s.ProjectId == projectId, cancellationToken);
+            if (sprint == null)
+            {
+                throw new DomainException("SprintId must reference a sprint in the same project.");
+            }
+            if (sprint.Status == SprintStatuses.Closed)
+            {
+                throw new DomainException("Cannot assign an issue to a closed sprint.");
+            }
+        }
+    }
+
+    private async Task EnsureWipLimitAllowsEntryAsync(
+        Guid projectId,
+        string targetStatus,
+        Guid movingTaskId,
+        CancellationToken cancellationToken)
+    {
+        var config = await _context.BoardColumnConfigs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.ProjectId == projectId && c.Status == targetStatus, cancellationToken);
+
+        if (config == null || !config.IsStrictWip || !config.WipLimit.HasValue)
+        {
+            return;
+        }
+
+        var currentCount = await _context.Tasks
+            .AsNoTracking()
+            .CountAsync(t => t.ProjectId == projectId && t.Status == targetStatus && t.Id != movingTaskId, cancellationToken);
+
+        if (currentCount >= config.WipLimit.Value)
+        {
+            throw new DomainException($"WIP limit ({config.WipLimit.Value}) reached for column '{targetStatus}'.");
+        }
+    }
+
+    private async Task<TaskSummaryDto> MapToSummaryWithContextAsync(
+        TaskItem task,
+        Project project,
+        IDictionary<Guid, (string DisplayName, string Email)> userMap,
+        CancellationToken cancellationToken)
+    {
+        var gitSummaryMap = await BuildGitSummaryMapAsync(new[] { task.Id }, cancellationToken);
+
+        string? epicKey = null;
+        string? epicTitle = null;
+        if (task.EpicId.HasValue)
+        {
+            var epic = await _context.Tasks.AsNoTracking()
+                .Where(t => t.Id == task.EpicId.Value)
+                .Select(t => new { t.TaskKey, t.Title })
+                .FirstOrDefaultAsync(cancellationToken);
+            epicKey = epic?.TaskKey;
+            epicTitle = epic?.Title;
+        }
+
+        string? parentKey = null;
+        if (task.ParentTaskId.HasValue)
+        {
+            parentKey = await _context.Tasks.AsNoTracking()
+                .Where(t => t.Id == task.ParentTaskId.Value)
+                .Select(t => t.TaskKey)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        string? sprintName = null;
+        if (task.SprintId.HasValue)
+        {
+            sprintName = await _context.Sprints.AsNoTracking()
+                .Where(s => s.Id == task.SprintId.Value)
+                .Select(s => s.Name)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        var subtaskStats = await _context.Tasks.AsNoTracking()
+            .Where(st => st.ParentTaskId == task.Id)
+            .Select(st => st.Status)
+            .ToListAsync(cancellationToken);
+
+        var isBlocked = await _context.IssueLinks.AsNoTracking()
+            .AnyAsync(l => l.TargetTaskId == task.Id &&
+                           l.LinkType == IssueLinkTypes.Blocks &&
+                           l.SourceTask != null &&
+                           l.SourceTask.Status != TaskStatuses.Done &&
+                           l.SourceTask.Status != TaskStatuses.Cancelled,
+                cancellationToken);
+
+        return MapToSummary(
+            task,
+            project,
+            userMap,
+            gitSummaryMap.GetValueOrDefault(task.Id),
+            epicKey,
+            epicTitle,
+            parentKey,
+            sprintName,
+            subtaskStats.Count,
+            subtaskStats.Count(s => s == TaskStatuses.Done),
+            isBlocked);
+    }
+
     private static TaskSummaryDto MapToSummary(
         TaskItem task,
         Project project,
         IDictionary<Guid, (string DisplayName, string Email)> userMap,
-        TaskGitSummaryDto? gitSummary = null)
+        TaskGitSummaryDto? gitSummary = null,
+        string? epicKey = null,
+        string? epicTitle = null,
+        string? parentTaskKey = null,
+        string? sprintName = null,
+        int subtaskCount = 0,
+        int completedSubtaskCount = 0,
+        bool isBlockedByOpenIssue = false)
     {
         return new TaskSummaryDto(
             Id: task.Id,
@@ -742,7 +1202,20 @@ public class TaskAppService : ITaskAppService
             UpdatedAtUtc: task.UpdatedAtUtc,
             TaskNumber: task.TaskNumber,
             TaskKey: task.TaskKey,
-            GitSummary: gitSummary
+            GitSummary: gitSummary,
+            IssueType: task.IssueType,
+            StoryPoints: task.StoryPoints,
+            EpicId: task.EpicId,
+            EpicKey: epicKey,
+            EpicTitle: epicTitle,
+            ParentTaskId: task.ParentTaskId,
+            ParentTaskKey: parentTaskKey,
+            SprintId: task.SprintId,
+            SprintName: sprintName,
+            BoardRank: task.BoardRank,
+            SubtaskCount: subtaskCount,
+            CompletedSubtaskCount: completedSubtaskCount,
+            IsBlockedByOpenIssue: isBlockedByOpenIssue
         );
     }
 

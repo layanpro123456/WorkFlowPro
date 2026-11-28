@@ -34,6 +34,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<GitPullRequest> GitPullRequests => Set<GitPullRequest>();
     public DbSet<TaskPullRequestLink> TaskPullRequestLinks => Set<TaskPullRequestLink>();
     public DbSet<GitWebhookDelivery> GitWebhookDeliveries => Set<GitWebhookDelivery>();
+    public DbSet<Sprint> Sprints => Set<Sprint>();
+    public DbSet<IssueLink> IssueLinks => Set<IssueLink>();
+    public DbSet<ProjectBoardColumnConfig> BoardColumnConfigs => Set<ProjectBoardColumnConfig>();
+    public DbSet<SprintBurndownSnapshot> SprintBurndownSnapshots => Set<SprintBurndownSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -159,6 +163,17 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
                 .HasMaxLength(20)
                 .IsRequired();
 
+            b.Property(t => t.IssueType)
+                .HasMaxLength(20)
+                .IsRequired()
+                .HasDefaultValue("Task");
+
+            b.Property(t => t.StoryPoints);
+
+            b.Property(t => t.BoardRank)
+                .IsRequired()
+                .HasDefaultValue(0);
+
             b.Property(t => t.DueAtUtc);
             b.Property(t => t.EstimateMinutes);
 
@@ -168,6 +183,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
                 .IsConcurrencyToken();
 
             b.HasIndex(t => new { t.ProjectId, t.Status });
+            b.HasIndex(t => new { t.ProjectId, t.SprintId, t.Status, t.BoardRank });
+            b.HasIndex(t => new { t.ProjectId, t.IssueType });
             b.HasIndex(t => new { t.ProjectId, t.TaskNumber })
                 .IsUnique()
                 .HasFilter("\"TaskNumber\" > 0");
@@ -209,6 +226,31 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
             b.HasMany(t => t.PullRequestLinks)
                 .WithOne(l => l.Task)
                 .HasForeignKey(l => l.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasOne(t => t.Epic)
+                .WithMany()
+                .HasForeignKey(t => t.EpicId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            b.HasOne(t => t.ParentTask)
+                .WithMany(p => p.Subtasks)
+                .HasForeignKey(t => t.ParentTaskId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasOne(t => t.Sprint)
+                .WithMany()
+                .HasForeignKey(t => t.SprintId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            b.HasMany(t => t.OutgoingLinks)
+                .WithOne(l => l.SourceTask)
+                .HasForeignKey(l => l.SourceTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(t => t.IncomingLinks)
+                .WithOne(l => l.TargetTask)
+                .HasForeignKey(l => l.TargetTaskId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -676,6 +718,74 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
                 .WithMany()
                 .HasForeignKey(d => d.RepositoryId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<Sprint>(b =>
+        {
+            b.ToTable("sprints");
+            b.HasKey(s => s.Id);
+
+            b.Property(s => s.Name).HasMaxLength(120).IsRequired();
+            b.Property(s => s.Goal).HasMaxLength(500);
+            b.Property(s => s.Status).HasMaxLength(20).IsRequired();
+
+            b.HasIndex(s => new { s.ProjectId, s.Status });
+            b.HasIndex(s => s.ProjectId)
+                .IsUnique()
+                .HasFilter("\"Status\" = 'Active'");
+
+            b.HasOne(s => s.Project)
+                .WithMany()
+                .HasForeignKey(s => s.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(s => s.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<IssueLink>(b =>
+        {
+            b.ToTable("issue_links");
+            b.HasKey(l => l.Id);
+
+            b.Property(l => l.LinkType).HasMaxLength(30).IsRequired();
+
+            b.HasIndex(l => new { l.SourceTaskId, l.TargetTaskId, l.LinkType }).IsUnique();
+            b.HasIndex(l => l.TargetTaskId);
+
+            b.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(l => l.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<ProjectBoardColumnConfig>(b =>
+        {
+            b.ToTable("project_board_column_configs");
+            b.HasKey(c => c.Id);
+
+            b.Property(c => c.Status).HasMaxLength(20).IsRequired();
+            b.HasIndex(c => new { c.ProjectId, c.Status }).IsUnique();
+
+            b.HasOne(c => c.Project)
+                .WithMany()
+                .HasForeignKey(c => c.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<SprintBurndownSnapshot>(b =>
+        {
+            b.ToTable("sprint_burndown_snapshots");
+            b.HasKey(s => s.Id);
+
+            b.HasIndex(s => new { s.SprintId, s.SnapshotDate }).IsUnique();
+
+            b.HasOne(s => s.Sprint)
+                .WithMany()
+                .HasForeignKey(s => s.SprintId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

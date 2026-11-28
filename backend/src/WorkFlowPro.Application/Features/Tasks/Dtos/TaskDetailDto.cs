@@ -25,5 +25,17 @@ public record TaskDetailDto(
     int TaskNumber = 0,
     string TaskKey = "",
     IReadOnlyList<TaskGitBranchDto>? Branches = null,
-    IReadOnlyList<TaskPullRequestDto>? PullRequests = null
+    IReadOnlyList<TaskPullRequestDto>? PullRequests = null,
+    string IssueType = "Task",
+    int? StoryPoints = null,
+    Guid? EpicId = null,
+    string? EpicKey = null,
+    string? EpicTitle = null,
+    Guid? ParentTaskId = null,
+    string? ParentTaskKey = null,
+    Guid? SprintId = null,
+    string? SprintName = null,
+    int BoardRank = 0,
+    IReadOnlyList<TaskSummaryDto>? Subtasks = null,
+    IReadOnlyList<WorkFlowPro.Application.Features.Sprints.Dtos.IssueLinkDto>? Links = null
 );

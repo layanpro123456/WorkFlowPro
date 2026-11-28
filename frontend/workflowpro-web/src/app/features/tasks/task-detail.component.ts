@@ -6,6 +6,8 @@ import { TaskService } from '../../core/tasks/task.service';
 import { ProjectService } from '../../core/projects/project.service';
 import { GitService } from '../../core/git/git.service';
 import { ProjectGitRepository, ProjectPullRequestSummary } from '../../core/git/git.models';
+import { SprintService } from '../../core/sprints/sprint.service';
+import { ISSUE_LINK_TYPES, ISSUE_TYPES, IssueLinkType, IssueType, Sprint } from '../../core/sprints/sprint.models';
 import { ProjectMember } from '../../core/projects/project.models';
 import {
   ALLOWED_TASK_TRANSITIONS,
@@ -14,6 +16,7 @@ import {
   TaskDetail,
   TaskPriority,
   TaskStatus,
+  TaskSummary,
   UpdateTaskRequest
 } from '../../core/tasks/task.models';
 
@@ -61,6 +64,9 @@ import {
         <header class="detail-header">
           <div class="header-main">
             <div class="badges-row">
+              <span class="issue-type-badge" [class]="'type-' + (item.issueType || 'Task').toLowerCase()">
+                {{ item.issueType || 'Task' }}
+              </span>
               <span class="project-tag">{{ item.taskKey || item.projectCode }}</span>
               <span class="status-pill" [class]="'status-' + item.status.toLowerCase()">
                 {{ item.status }}
@@ -68,6 +74,9 @@ import {
               <span class="priority-tag" [class]="'tag-' + item.priority.toLowerCase()">
                 {{ item.priority }}
               </span>
+              @if (item.storyPoints != null) {
+                <span class="points-pill">{{ item.storyPoints }} pts</span>
+              }
               <span class="version-tag" title="Optimistic Concurrency Version">Version {{ item.version }}</span>
             </div>
             <h1 class="task-heading">{{ item.title }}</h1>
@@ -111,6 +120,61 @@ import {
               } @else {
                 <p class="empty-text">No description provided for this task.</p>
               }
+            </section>
+
+            <!-- Subtasks & Linked Issues -->
+            @if (item.issueType !== 'Subtask' && item.issueType !== 'Epic') {
+              <section class="content-card">
+                <div class="card-title-row">
+                  <h2>Subtasks ({{ item.subtasks?.length || 0 }})</h2>
+                </div>
+                <form (ngSubmit)="onAddSubtask()" style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+                  <input
+                    type="text"
+                    [(ngModel)]="newSubtaskTitle"
+                    name="newSubtaskTitle"
+                    placeholder="Add a subtask..."
+                    style="flex:1; padding:0.45rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px;" />
+                  <button type="submit" class="btn-git-primary" [disabled]="!newSubtaskTitle.trim()">+ Add Subtask</button>
+                </form>
+                <div class="git-list">
+                  @for (st of (item.subtasks || []); track st.id) {
+                    <div class="git-item">
+                      <div class="git-item-main">
+                        <a [routerLink]="['/tasks', st.id]" class="pr-link">{{ st.taskKey }} — {{ st.title }}</a>
+                      </div>
+                      <span class="status-pill" [class]="'status-' + st.status.toLowerCase()">{{ st.status }}</span>
+                    </div>
+                  } @empty {
+                    <p class="empty-text">No subtasks yet.</p>
+                  }
+                </div>
+              </section>
+            }
+
+            <section class="content-card">
+              <div class="card-title-row">
+                <h2>Linked Issues ({{ item.links?.length || 0 }})</h2>
+                <button type="button" class="btn-git-secondary" (click)="openLinkIssueModal()">+ Link Issue</button>
+              </div>
+              <div class="git-list">
+                @for (lnk of (item.links || []); track lnk.id) {
+                  <div class="git-item">
+                    <div class="git-item-main">
+                      <span style="font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase;">
+                        {{ lnk.displayRelation }}
+                      </span>
+                      <a [routerLink]="['/tasks', lnk.relatedTaskId]" class="pr-link">
+                        {{ lnk.relatedTaskKey }} — {{ lnk.relatedTaskTitle }}
+                      </a>
+                      <span class="git-submeta">{{ lnk.relatedTaskIssueType }} • {{ lnk.relatedTaskStatus }}</span>
+                    </div>
+                    <button type="button" class="btn-unlink" (click)="onDeleteIssueLink(lnk.id)">Remove</button>
+                  </div>
+                } @empty {
+                  <p class="empty-text">No linked issues.</p>
+                }
+              </div>
             </section>
 
             <!-- Git Branches & Pull Requests -->
@@ -243,6 +307,30 @@ import {
               <h3>Task Properties</h3>
               <dl class="meta-list">
                 <div class="meta-item">
+                  <dt>Issue Type</dt>
+                  <dd>{{ item.issueType || 'Task' }}</dd>
+                </div>
+                <div class="meta-item">
+                  <dt>Story Points</dt>
+                  <dd>{{ item.storyPoints != null ? item.storyPoints : 'None' }}</dd>
+                </div>
+                <div class="meta-item">
+                  <dt>Sprint</dt>
+                  <dd>{{ item.sprintName || 'Backlog' }}</dd>
+                </div>
+                @if (item.epicId && item.epicKey) {
+                  <div class="meta-item">
+                    <dt>Epic</dt>
+                    <dd><a [routerLink]="['/tasks', item.epicId]" class="btn-link">{{ item.epicKey }}</a></dd>
+                  </div>
+                }
+                @if (item.parentTaskId && item.parentTaskKey) {
+                  <div class="meta-item">
+                    <dt>Parent Task</dt>
+                    <dd><a [routerLink]="['/tasks', item.parentTaskId]" class="btn-link">{{ item.parentTaskKey }}</a></dd>
+                  </div>
+                }
+                <div class="meta-item">
                   <dt>Assignee</dt>
                   <dd>{{ item.assigneeName || 'Unassigned' }}</dd>
                 </div>
@@ -367,6 +455,44 @@ import {
                     rows="3"
                     [(ngModel)]="editModel.description"
                     name="editDescription"></textarea>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="edit-issue-type">Issue Type</label>
+                    <select id="edit-issue-type" [(ngModel)]="editModel.issueType" name="editIssueType">
+                      @for (it of issueTypes; track it) {
+                        <option [value]="it">{{ it }}</option>
+                      }
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="edit-points">Story Points</label>
+                    <input id="edit-points" type="number" min="0" [(ngModel)]="editModel.storyPoints" name="editPoints" />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="edit-epic">Epic</label>
+                    <select id="edit-epic" [(ngModel)]="editModel.epicId" name="editEpic" [disabled]="editModel.issueType === 'Epic'">
+                      <option [ngValue]="null">None</option>
+                      @for (ep of projectEpics(); track ep.id) {
+                        <option [value]="ep.id">{{ ep.taskKey }} — {{ ep.title }}</option>
+                      }
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="edit-sprint">Sprint</label>
+                    <select id="edit-sprint" [(ngModel)]="editModel.sprintId" name="editSprint" [disabled]="editModel.issueType === 'Epic'">
+                      <option [ngValue]="null">Product Backlog</option>
+                      @for (sp of projectSprints(); track sp.id) {
+                        <option [value]="sp.id">{{ sp.name }} ({{ sp.status }})</option>
+                      }
+                    </select>
+                  </div>
                 </div>
 
                 <div class="form-row">
@@ -528,6 +654,43 @@ import {
                   <button type="submit" class="primary-btn" [disabled]="isGitSubmitting()">
                     {{ isGitSubmitting() ? 'Linking...' : 'Link Pull Request' }}
                   </button>
+                </footer>
+              </form>
+            </div>
+          </div>
+        }
+        <!-- Link Issue Modal -->
+        @if (showLinkIssueModal()) {
+          <div class="modal-backdrop" (click)="showLinkIssueModal.set(false)">
+            <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+              <header class="modal-header">
+                <h2>Link Related Issue</h2>
+                <button class="modal-close" (click)="showLinkIssueModal.set(false)">✕</button>
+              </header>
+              <form (ngSubmit)="onCreateIssueLink()" class="modal-form">
+                <div class="form-group">
+                  <label for="li-type">Relationship</label>
+                  <select id="li-type" [(ngModel)]="linkIssueModel.linkType" name="liType">
+                    @for (lt of issueLinkTypes; track lt) {
+                      <option [value]="lt">{{ lt }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="li-target">Target Issue</label>
+                  <select id="li-target" [(ngModel)]="linkIssueModel.targetTaskId" name="liTarget" required>
+                    <option value="">-- Select issue --</option>
+                    @for (t of linkableProjectTasks(); track t.id) {
+                      <option [value]="t.id">{{ t.taskKey }} — {{ t.title }} ({{ t.status }})</option>
+                    }
+                  </select>
+                </div>
+                @if (gitModalError()) {
+                  <div class="modal-error">{{ gitModalError() }}</div>
+                }
+                <footer class="modal-footer">
+                  <button type="button" class="btn-cancel" (click)="showLinkIssueModal.set(false)">Cancel</button>
+                  <button type="submit" class="primary-btn" [disabled]="!linkIssueModel.targetTaskId">Create Link</button>
                 </footer>
               </form>
             </div>
@@ -883,17 +1046,29 @@ export class TaskDetailComponent implements OnInit {
   private readonly taskService = inject(TaskService);
   private readonly projectService = inject(ProjectService);
   private readonly gitService = inject(GitService);
+  private readonly sprintService = inject(SprintService);
   private readonly route = inject(ActivatedRoute);
 
   readonly taskPriorities = TASK_PRIORITIES;
+  readonly issueTypes: IssueType[] = ISSUE_TYPES;
+  readonly issueLinkTypes: IssueLinkType[] = ISSUE_LINK_TYPES;
 
   task = signal<TaskDetail | null>(null);
   projectMembers = signal<ProjectMember[]>([]);
   projectRepos = signal<ProjectGitRepository[]>([]);
   projectPullRequests = signal<ProjectPullRequestSummary[]>([]);
+  projectSprints = signal<Sprint[]>([]);
+  projectTasks = signal<TaskSummary[]>([]);
   isLoading = signal<boolean>(true);
   errorMessage = signal<string>('');
   successMessage = signal<string>('');
+
+  newSubtaskTitle = '';
+  showLinkIssueModal = signal<boolean>(false);
+  linkIssueModel: { linkType: IssueLinkType; targetTaskId: string } = {
+    linkType: 'Blocks',
+    targetTaskId: ''
+  };
 
   // Transition Modal
   showTransitionModal = signal<boolean>(false);
@@ -969,6 +1144,22 @@ export class TaskDetailComponent implements OnInit {
       next: (prs) => this.projectPullRequests.set(prs),
       error: () => this.projectPullRequests.set([])
     });
+    this.sprintService.listProjectSprints(projectId).subscribe({
+      next: (sprints) => this.projectSprints.set(sprints.filter(s => s.status !== 'Closed')),
+      error: () => this.projectSprints.set([])
+    });
+    this.taskService.listProjectTasks(projectId, { page: 1, pageSize: 100 }).subscribe({
+      next: (res) => this.projectTasks.set(res.items),
+      error: () => this.projectTasks.set([])
+    });
+  }
+
+  projectEpics(): TaskSummary[] {
+    return this.projectTasks().filter(t => t.issueType === 'Epic' && t.id !== this.task()?.id);
+  }
+
+  linkableProjectTasks(): TaskSummary[] {
+    return this.projectTasks().filter(t => t.id !== this.task()?.id);
   }
 
   loadProjectMembers(projectId: string): void {
@@ -1036,7 +1227,12 @@ export class TaskDetailComponent implements OnInit {
       assigneeId: current.assigneeId,
       dueAtUtc: current.dueAtUtc,
       estimateMinutes: current.estimateMinutes,
-      version: current.version
+      version: current.version,
+      issueType: current.issueType || 'Task',
+      storyPoints: current.storyPoints ?? null,
+      epicId: current.epicId ?? null,
+      parentTaskId: current.parentTaskId ?? null,
+      sprintId: current.sprintId ?? null
     };
     this.editModelDueDate = current.dueAtUtc ? current.dueAtUtc.split('T')[0] : '';
     this.showEditModal.set(true);
@@ -1248,5 +1444,62 @@ export class TaskDetailComponent implements OnInit {
       .slice(0, 45)
       .replace(/-+$/, '');
     return slug ? `${prefix}/${key}-${slug}` : `${prefix}/${key}`;
+  }
+
+  onAddSubtask(): void {
+    const current = this.task();
+    if (!current || !this.newSubtaskTitle.trim()) return;
+
+    this.taskService.create(current.projectId, {
+      title: this.newSubtaskTitle.trim(),
+      priority: current.priority,
+      issueType: 'Subtask',
+      parentTaskId: current.id,
+      epicId: current.epicId ?? null,
+      sprintId: current.sprintId ?? null
+    }).subscribe({
+      next: (created) => {
+        this.newSubtaskTitle = '';
+        this.successMessage.set(`Subtask ${created.taskKey} added.`);
+        this.loadTask(current.id);
+      },
+      error: (err) => this.errorMessage.set(err.error?.detail || 'Failed to add subtask.')
+    });
+  }
+
+  openLinkIssueModal(): void {
+    this.gitModalError.set('');
+    this.linkIssueModel = { linkType: 'Blocks', targetTaskId: '' };
+    this.showLinkIssueModal.set(true);
+  }
+
+  onCreateIssueLink(): void {
+    const current = this.task();
+    if (!current || !this.linkIssueModel.targetTaskId) return;
+
+    this.taskService.createLink(current.id, {
+      targetTaskId: this.linkIssueModel.targetTaskId,
+      linkType: this.linkIssueModel.linkType
+    }).subscribe({
+      next: () => {
+        this.showLinkIssueModal.set(false);
+        this.successMessage.set('Issue link created.');
+        this.loadTask(current.id);
+      },
+      error: (err) => this.gitModalError.set(err.error?.detail || 'Failed to create issue link.')
+    });
+  }
+
+  onDeleteIssueLink(linkId: string): void {
+    const current = this.task();
+    if (!current) return;
+
+    this.taskService.deleteLink(current.id, linkId).subscribe({
+      next: () => {
+        this.successMessage.set('Issue link removed.');
+        this.loadTask(current.id);
+      },
+      error: (err) => this.errorMessage.set(err.error?.detail || 'Failed to remove issue link.')
+    });
   }
 }

@@ -517,6 +517,44 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.ToTable("notifications", (string)null);
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.IssueLink", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LinkType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SourceTaskId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("TargetTaskId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("TargetTaskId");
+
+                    b.HasIndex("SourceTaskId", "TargetTaskId", "LinkType")
+                        .IsUnique();
+
+                    b.ToTable("issue_links", (string)null);
+                });
+
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -569,6 +607,46 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("projects", (string)null);
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.ProjectBoardColumnConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsStrictWip")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsVisible")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("WipLimit")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "Status")
+                        .IsUnique();
+
+                    b.ToTable("project_board_column_configs", (string)null);
                 });
 
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.ProjectGitRepository", b =>
@@ -732,6 +810,104 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.ToTable("refresh_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.Sprint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("EndDateUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Goal")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("StartDateUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("ProjectId")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 'Active'");
+
+                    b.HasIndex("ProjectId", "Status");
+
+                    b.ToTable("sprints", (string)null);
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.SprintBurndownSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CompletedPoints")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RecordedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RemainingPoints")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RemainingTaskCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly>("SnapshotDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SprintId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TotalPoints")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SprintId", "SnapshotDate")
+                        .IsUnique();
+
+                    b.ToTable("sprint_burndown_snapshots", (string)null);
+                });
+
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.SupportTicket", b =>
                 {
                     b.Property<Guid>("Id")
@@ -888,6 +1064,11 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("AssigneeId")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("BoardRank")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
@@ -900,8 +1081,21 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("DueAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("EpicId")
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("EstimateMinutes")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("IssueType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("Task");
+
+                    b.Property<Guid?>("ParentTaskId")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Priority")
                         .IsRequired()
@@ -911,10 +1105,16 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("SprintId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("StoryPoints")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("TaskKey")
                         .IsRequired()
@@ -950,15 +1150,25 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DueAtUtc");
 
+                    b.HasIndex("EpicId");
+
+                    b.HasIndex("ParentTaskId");
+
+                    b.HasIndex("SprintId");
+
                     b.HasIndex("TaskKey");
 
                     b.HasIndex("AssigneeId", "Status");
+
+                    b.HasIndex("ProjectId", "IssueType");
 
                     b.HasIndex("ProjectId", "Status");
 
                     b.HasIndex("ProjectId", "TaskNumber")
                         .IsUnique()
                         .HasFilter("\"TaskNumber\" > 0");
+
+                    b.HasIndex("ProjectId", "SprintId", "Status", "BoardRank");
 
                     b.ToTable("tasks", (string)null);
                 });
@@ -1428,6 +1638,31 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.IssueLink", b =>
+                {
+                    b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WorkFlowPro.Domain.Entities.TaskItem", "SourceTask")
+                        .WithMany("OutgoingLinks")
+                        .HasForeignKey("SourceTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WorkFlowPro.Domain.Entities.TaskItem", "TargetTask")
+                        .WithMany("IncomingLinks")
+                        .HasForeignKey("TargetTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SourceTask");
+
+                    b.Navigation("TargetTask");
+                });
+
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.Project", b =>
                 {
                     b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
@@ -1435,6 +1670,17 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.ProjectBoardColumnConfig", b =>
+                {
+                    b.HasOne("WorkFlowPro.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.ProjectGitRepository", b =>
@@ -1478,6 +1724,34 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.Sprint", b =>
+                {
+                    b.HasOne("WorkFlowPro.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WorkFlowPro.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("WorkFlowPro.Domain.Entities.SprintBurndownSnapshot", b =>
+                {
+                    b.HasOne("WorkFlowPro.Domain.Entities.Sprint", "Sprint")
+                        .WithMany()
+                        .HasForeignKey("SprintId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Sprint");
                 });
 
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.SupportTicket", b =>
@@ -1550,13 +1824,34 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("WorkFlowPro.Domain.Entities.TaskItem", "Epic")
+                        .WithMany()
+                        .HasForeignKey("EpicId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("WorkFlowPro.Domain.Entities.TaskItem", "ParentTask")
+                        .WithMany("Subtasks")
+                        .HasForeignKey("ParentTaskId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("WorkFlowPro.Domain.Entities.Project", "Project")
                         .WithMany()
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("WorkFlowPro.Domain.Entities.Sprint", "Sprint")
+                        .WithMany()
+                        .HasForeignKey("SprintId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Epic");
+
+                    b.Navigation("ParentTask");
+
                     b.Navigation("Project");
+
+                    b.Navigation("Sprint");
                 });
 
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.TaskPullRequestLink", b =>
@@ -1687,9 +1982,15 @@ namespace WorkFlowPro.Infrastructure.Persistence.Migrations
 
                     b.Navigation("GitBranches");
 
+                    b.Navigation("IncomingLinks");
+
+                    b.Navigation("OutgoingLinks");
+
                     b.Navigation("PullRequestLinks");
 
                     b.Navigation("StatusHistory");
+
+                    b.Navigation("Subtasks");
                 });
 
             modelBuilder.Entity("WorkFlowPro.Domain.Entities.WorkflowDefinition", b =>

@@ -25,5 +25,14 @@ public class CreateTaskRequestValidator : AbstractValidator<CreateTaskRequest>
         RuleFor(x => x.Status)
             .Must(s => string.IsNullOrEmpty(s) || TaskStatuses.All.Contains(s, StringComparer.OrdinalIgnoreCase))
             .WithMessage($"Status must be one of: {string.Join(", ", TaskStatuses.All)}");
+
+        RuleFor(x => x.IssueType)
+            .Must(IssueTypes.IsValid)
+            .WithMessage($"IssueType must be one of: {string.Join(", ", IssueTypes.All)}");
+
+        RuleFor(x => x.StoryPoints)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.StoryPoints.HasValue)
+            .WithMessage("Story points cannot be negative.");
     }
 }

@@ -3,6 +3,12 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { PagedResult } from '../projects/project.models';
 import {
+  AssignTaskSprintRequest,
+  CreateIssueLinkRequest,
+  IssueLink,
+  MoveTaskOnBoardRequest
+} from '../sprints/sprint.models';
+import {
   AddTaskCommentRequest,
   ChangeTaskStatusRequest,
   CreateTaskRequest,
@@ -19,6 +25,10 @@ export interface TaskFilterParams {
   assigneeId?: string;
   search?: string;
   prState?: string;
+  sprintId?: string;
+  issueType?: string;
+  epicId?: string;
+  backlogOnly?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -50,6 +60,18 @@ export class TaskService {
     if (filters?.prState && filters.prState !== 'All') {
       params = params.set('prState', filters.prState);
     }
+    if (filters?.sprintId && filters.sprintId !== 'All') {
+      params = params.set('sprintId', filters.sprintId);
+    }
+    if (filters?.issueType && filters.issueType !== 'All') {
+      params = params.set('issueType', filters.issueType);
+    }
+    if (filters?.epicId && filters.epicId !== 'All') {
+      params = params.set('epicId', filters.epicId);
+    }
+    if (filters?.backlogOnly) {
+      params = params.set('backlogOnly', 'true');
+    }
 
     return this.http.get<PagedResult<TaskSummary>>(
       `${this.baseUrl}/projects/${projectId}/tasks`,
@@ -71,6 +93,22 @@ export class TaskService {
 
   changeStatus(taskId: string, payload: ChangeTaskStatusRequest): Observable<TaskSummary> {
     return this.http.patch<TaskSummary>(`${this.baseUrl}/tasks/${taskId}/status`, payload);
+  }
+
+  moveOnBoard(taskId: string, payload: MoveTaskOnBoardRequest): Observable<TaskSummary> {
+    return this.http.patch<TaskSummary>(`${this.baseUrl}/tasks/${taskId}/move`, payload);
+  }
+
+  assignSprint(taskId: string, payload: AssignTaskSprintRequest): Observable<TaskSummary> {
+    return this.http.patch<TaskSummary>(`${this.baseUrl}/tasks/${taskId}/sprint`, payload);
+  }
+
+  createLink(taskId: string, payload: CreateIssueLinkRequest): Observable<IssueLink> {
+    return this.http.post<IssueLink>(`${this.baseUrl}/tasks/${taskId}/links`, payload);
+  }
+
+  deleteLink(taskId: string, linkId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/tasks/${taskId}/links/${linkId}`);
   }
 
   addComment(taskId: string, payload: AddTaskCommentRequest): Observable<TaskComment> {

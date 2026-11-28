@@ -65,11 +65,15 @@ List filters: `status`, `search`, `page`, `pageSize`.
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/projects/{projectId}/tasks` | List project tasks (filters: `status`, `priority`, `assigneeId`, `search`, `prState`, `page`, `pageSize`) |
-| POST | `/projects/{projectId}/tasks` | Create task (auto-assigns sequential `taskNumber` & `taskKey`, e.g. `PRJ-ALPHA-1`) |
-| GET | `/tasks/{taskId}` | Task details (includes `taskKey`, linked `branches`, and `pullRequests`) |
-| PUT | `/tasks/{taskId}` | Update task fields |
+| GET | `/projects/{projectId}/tasks` | List project tasks (filters: `status`, `priority`, `assigneeId`, `search`, `prState`, `sprintId`, `issueType`, `epicId`, `backlogOnly`, `page`, `pageSize`) |
+| POST | `/projects/{projectId}/tasks` | Create task (auto-assigns sequential `taskNumber` & `taskKey`, supports `issueType`, `storyPoints`, `epicId`, `parentTaskId`, `sprintId`) |
+| GET | `/tasks/{taskId}` | Task details (includes `taskKey`, Agile metadata, `subtasks`, `links`, linked `branches`, and `pullRequests`) |
+| PUT | `/tasks/{taskId}` | Update task fields (including `issueType`, `storyPoints`, `epicId`, `parentTaskId`, `sprintId`) |
 | PATCH | `/tasks/{taskId}/status` | Change status |
+| PATCH | `/tasks/{taskId}/move` | Move/reorder card on Kanban board (`targetStatus`, `boardRank`, `expectedVersion`; enforces strict WIP limits & transitions) |
+| PATCH | `/tasks/{taskId}/sprint` | Assign or move task between Sprint and Product Backlog (`sprintId`, `boardRank`) |
+| POST | `/tasks/{taskId}/links` | Link two issues (`targetTaskId`, `linkType`: `Blocks`, `RelatesTo`, `Duplicates`; prevents circular blocking) |
+| DELETE | `/tasks/{taskId}/links/{linkId}` | Remove an issue link |
 | POST | `/tasks/{taskId}/comments` | Add comment |
 | GET | `/tasks/{taskId}/comments` | List comments |
 | GET | `/tasks/{taskId}/history` | Status history |
@@ -166,6 +170,20 @@ Use bounded date ranges and pagination. CSV export can be a later feature.
 | POST | `/tasks/{taskId}/git/pull-requests/link` | Manually link a PR (`repositoryId`, `prNumber`) to a task |
 | DELETE | `/tasks/{taskId}/git/pull-requests/{pullRequestId}` | Unlink a PR from a task |
 | POST | `/webhooks/git/{provider}/{repositoryId}` | `[AllowAnonymous]` inbound webhook verified via `X-Hub-Signature-256` (HMAC-SHA256) & `X-GitHub-Delivery` idempotency (`WebhookPolicy` rate limited) |
+
+## 10A. Agile Engine: Sprints, Burndown, Velocity & Board Config
+
+| Method | Route | Purpose |
+|---|---|---|
+| GET | `/projects/{projectId}/sprints` | List project sprints ordered by creation date |
+| POST | `/projects/{projectId}/sprints` | Create a planned sprint (`name`, `goal`, optional dates) |
+| PUT | `/sprints/{sprintId}` | Update sprint name, goal, or planned dates |
+| POST | `/sprints/{sprintId}/start` | Start sprint with date range (enforces max 1 active sprint per project) |
+| POST | `/sprints/{sprintId}/complete` | Complete sprint with unfinished item rollover (`MoveToBacklog` or `MoveToNextPlannedSprint`) |
+| GET | `/sprints/{sprintId}/burndown` | Retrieve sprint burndown daily/snapshot series (`idealPoints`, `remainingPoints`) |
+| GET | `/projects/{projectId}/velocity` | Retrieve historical committed vs. completed points for closed sprints |
+| GET | `/projects/{projectId}/board-config` | Get per-column WIP limits & visibility config |
+| PUT | `/projects/{projectId}/board-config` | Update Kanban column WIP limits and strict enforcement flags |
 
 ## 11. HTTP status guidance
 

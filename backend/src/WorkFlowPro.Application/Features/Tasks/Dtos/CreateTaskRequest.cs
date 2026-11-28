@@ -7,5 +7,10 @@ public record CreateTaskRequest(
     Guid? AssigneeId,
     DateTime? DueAtUtc,
     int? EstimateMinutes,
-    string? Status = null
+    string? Status = null,
+    string IssueType = "Task",
+    int? StoryPoints = null,
+    Guid? EpicId = null,
+    Guid? ParentTaskId = null,
+    Guid? SprintId = null
 );

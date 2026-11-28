@@ -188,25 +188,44 @@ public class ApplicationDbContextInitialiser
             await _context.SaveChangesAsync();
         }
 
-        // Seed Demo Tasks
+        // Seed Demo Tasks, Sprints, Epics & Subtasks
         if (!await _context.Tasks.AnyAsync(t => t.ProjectId == prjAlpha.Id))
         {
-            var task1 = new TaskItem(prjAlpha.Id, "Setup Terraform infrastructure", "Initial cloud infrastructure", adminUser.Id, TaskPriorities.High, employee1.Id, DateTime.UtcNow.AddDays(5), 180, TaskStatuses.Done);
-            task1.AssignTaskKey(1, prjAlpha.ProjectCode);
+            var closedSprint = new Sprint(prjAlpha.Id, "Sprint 1 — Foundation", manager.Id, "Core cloud & DB bootstrap");
+            closedSprint.Start(DateTime.UtcNow.AddDays(-21), DateTime.UtcNow.AddDays(-7), DateTime.UtcNow.AddDays(-21));
+            closedSprint.Complete(DateTime.UtcNow.AddDays(-7));
+
+            var activeSprint = new Sprint(prjAlpha.Id, "Sprint 2 — Cloud Cutover", manager.Id, "RDS cutover, JWT rotation & security hardening");
+            activeSprint.Start(DateTime.UtcNow.AddDays(-6), DateTime.UtcNow.AddDays(8), DateTime.UtcNow.AddDays(-6));
+
+            _context.Sprints.AddRange(closedSprint, activeSprint);
+
+            var epic = new TaskItem(prjAlpha.Id, "Enterprise Cloud Modernization", "Top-level migration epic", manager.Id, TaskPriorities.High, manager.Id, null, null, TaskStatuses.InProgress, IssueTypes.Epic, 21, null, null, null, 10);
+            epic.AssignTaskKey(1, prjAlpha.ProjectCode);
+
+            var task1 = new TaskItem(prjAlpha.Id, "Setup Terraform infrastructure", "Initial cloud infrastructure", adminUser.Id, TaskPriorities.High, employee1.Id, DateTime.UtcNow.AddDays(5), 180, TaskStatuses.Done, IssueTypes.Story, 5, epic.Id, null, closedSprint.Id, 100);
+            task1.AssignTaskKey(2, prjAlpha.ProjectCode);
             task1.AddComment(adminUser.Id, "Terraform cloud state bucket is configured.");
 
-            var task2 = new TaskItem(prjAlpha.Id, "Migrate PostgreSQL database to RDS", "Zero-downtime replication setup", manager.Id, TaskPriorities.Urgent, employee1.Id, DateTime.UtcNow.AddDays(2), 240, TaskStatuses.InProgress);
-            task2.AssignTaskKey(2, prjAlpha.ProjectCode);
+            var task2 = new TaskItem(prjAlpha.Id, "Migrate PostgreSQL database to RDS", "Zero-downtime replication setup", manager.Id, TaskPriorities.Urgent, employee1.Id, DateTime.UtcNow.AddDays(2), 240, TaskStatuses.InProgress, IssueTypes.Story, 8, epic.Id, null, activeSprint.Id, 100);
+            task2.AssignTaskKey(3, prjAlpha.ProjectCode);
             task2.AddComment(employee1.Id, "Executing pg_dump snapshot right now.");
 
-            var task3 = new TaskItem(prjAlpha.Id, "Implement JWT rotation in API gateway", "Token rotation security", manager.Id, TaskPriorities.High, employee2.Id, DateTime.UtcNow.AddDays(7), 120, TaskStatuses.ToDo);
-            task3.AssignTaskKey(3, prjAlpha.ProjectCode);
+            var task3 = new TaskItem(prjAlpha.Id, "Implement JWT rotation in API gateway", "Token rotation security", manager.Id, TaskPriorities.High, employee2.Id, DateTime.UtcNow.AddDays(7), 120, TaskStatuses.ToDo, IssueTypes.Task, 3, epic.Id, null, activeSprint.Id, 200);
+            task3.AssignTaskKey(4, prjAlpha.ProjectCode);
 
-            var task4 = new TaskItem(prjAlpha.Id, "Audit container security vulnerabilities", "Security scanning", adminUser.Id, TaskPriorities.Urgent, employee1.Id, DateTime.UtcNow.AddDays(-1), 90, TaskStatuses.Blocked);
-            task4.AssignTaskKey(4, prjAlpha.ProjectCode);
+            var task4 = new TaskItem(prjAlpha.Id, "Audit container security vulnerabilities", "Security scanning", adminUser.Id, TaskPriorities.Urgent, employee1.Id, DateTime.UtcNow.AddDays(-1), 90, TaskStatuses.Blocked, IssueTypes.Bug, 5, epic.Id, null, activeSprint.Id, 300);
+            task4.AssignTaskKey(5, prjAlpha.ProjectCode);
             task4.AddComment(employee1.Id, "Awaiting approval for base image upgrade.");
 
-            _context.Tasks.AddRange(task1, task2, task3, task4);
+            var subtask1 = new TaskItem(prjAlpha.Id, "Verify RDS read-replica lag metrics", "Subtask for RDS cutover", employee1.Id, TaskPriorities.Normal, employee1.Id, null, 45, TaskStatuses.Done, IssueTypes.Subtask, 2, epic.Id, task2.Id, activeSprint.Id, 150);
+            subtask1.AssignTaskKey(6, prjAlpha.ProjectCode);
+
+            _context.Tasks.AddRange(epic, task1, task2, task3, task4, subtask1);
+            _context.SprintBurndownSnapshots.Add(new SprintBurndownSnapshot(closedSprint.Id, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7).Date), 5, 0, 5, 0, DateTime.UtcNow.AddDays(-7)));
+            _context.SprintBurndownSnapshots.Add(new SprintBurndownSnapshot(activeSprint.Id, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-6).Date), 18, 18, 0, 4, DateTime.UtcNow.AddDays(-6)));
+            _context.SprintBurndownSnapshots.Add(new SprintBurndownSnapshot(activeSprint.Id, DateOnly.FromDateTime(DateTime.UtcNow.Date), 18, 16, 2, 3, DateTime.UtcNow));
+
             await _context.SaveChangesAsync();
 
             // Seed Demo Git Repository & Linked Branch/PR
@@ -224,9 +243,9 @@ public class ApplicationDbContextInitialiser
                 var demoBranch = new TaskGitBranch(
                     task2.Id,
                     demoRepo.Id,
-                    "feat/PRJ-ALPHA-2-rds-replication",
+                    "feat/PRJ-ALPHA-3-rds-replication",
                     "main",
-                    demoRepo.BuildBranchWebUrl("feat/PRJ-ALPHA-2-rds-replication"),
+                    demoRepo.BuildBranchWebUrl("feat/PRJ-ALPHA-3-rds-replication"),
                     employee1.Id);
                 _context.TaskGitBranches.Add(demoBranch);
 
@@ -234,10 +253,10 @@ public class ApplicationDbContextInitialiser
                     repositoryId: demoRepo.Id,
                     externalPrId: 10042,
                     prNumber: 42,
-                    title: "feat(PRJ-ALPHA-2): Zero-downtime PostgreSQL RDS replication",
-                    body: "Implements read-replica cutover scripts for PRJ-ALPHA-2.",
+                    title: "feat(PRJ-ALPHA-3): Zero-downtime PostgreSQL RDS replication",
+                    body: "Implements read-replica cutover scripts for PRJ-ALPHA-3.",
                     state: PullRequestStates.Open,
-                    sourceBranch: "feat/PRJ-ALPHA-2-rds-replication",
+                    sourceBranch: "feat/PRJ-ALPHA-3-rds-replication",
                     targetBranch: "main",
                     authorLogin: "davidchen",
                     htmlUrl: "https://github.com/layanpro123456/WorkFlowPro/pull/42",

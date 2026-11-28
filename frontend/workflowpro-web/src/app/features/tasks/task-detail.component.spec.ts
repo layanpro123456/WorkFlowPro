@@ -8,6 +8,7 @@ import { TaskDetailComponent } from './task-detail.component';
 import { TaskService } from '../../core/tasks/task.service';
 import { ProjectService } from '../../core/projects/project.service';
 import { GitService } from '../../core/git/git.service';
+import { SprintService } from '../../core/sprints/sprint.service';
 import { TaskDetail } from '../../core/tasks/task.models';
 
 describe('TaskDetailComponent', () => {
@@ -16,6 +17,7 @@ describe('TaskDetailComponent', () => {
   let taskService: TaskService;
   let projectService: ProjectService;
   let gitService: GitService;
+  let sprintService: SprintService;
 
   const mockDetail: TaskDetail = {
     id: 'task-100',
@@ -85,8 +87,13 @@ describe('TaskDetailComponent', () => {
     taskService = TestBed.inject(TaskService);
     projectService = TestBed.inject(ProjectService);
     gitService = TestBed.inject(GitService);
+    sprintService = TestBed.inject(SprintService);
     vi.spyOn(gitService, 'listProjectRepositories').mockReturnValue(of([]));
     vi.spyOn(gitService, 'listProjectPullRequests').mockReturnValue(of([]));
+    vi.spyOn(sprintService, 'listProjectSprints').mockReturnValue(of([]));
+    vi.spyOn(taskService, 'listProjectTasks').mockReturnValue(of({
+      items: [], page: 1, pageSize: 100, totalCount: 0, totalPages: 0, hasPreviousPage: false, hasNextPage: false
+    }));
   });
 
   it('loads task detail and renders attributes on init', () => {

@@ -1,4 +1,5 @@
 using WorkFlowPro.Application.Common.Models;
+using WorkFlowPro.Application.Features.Sprints.Dtos;
 using WorkFlowPro.Application.Features.Tasks.Dtos;
 
 namespace WorkFlowPro.Application.Features.Tasks.Services;
@@ -19,7 +20,11 @@ public interface ITaskAppService
         int page,
         int pageSize,
         CancellationToken cancellationToken,
-        string? prState = null);
+        string? prState = null,
+        Guid? sprintId = null,
+        string? issueType = null,
+        Guid? epicId = null,
+        bool? backlogOnly = null);
 
     Task<TaskDetailDto> GetByIdAsync(
         Guid taskId,
@@ -33,6 +38,16 @@ public interface ITaskAppService
     Task<TaskSummaryDto> ChangeStatusAsync(
         Guid taskId,
         ChangeTaskStatusRequest request,
+        CancellationToken cancellationToken);
+
+    Task<TaskSummaryDto> MoveOnBoardAsync(
+        Guid taskId,
+        MoveTaskOnBoardRequest request,
+        CancellationToken cancellationToken);
+
+    Task<TaskSummaryDto> AssignSprintAsync(
+        Guid taskId,
+        AssignTaskSprintRequest request,
         CancellationToken cancellationToken);
 
     Task<TaskCommentDto> AddCommentAsync(

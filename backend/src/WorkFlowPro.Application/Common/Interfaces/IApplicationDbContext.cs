@@ -26,6 +26,10 @@ public interface IApplicationDbContext
     DbSet<GitPullRequest> GitPullRequests { get; }
     DbSet<TaskPullRequestLink> TaskPullRequestLinks { get; }
     DbSet<GitWebhookDelivery> GitWebhookDeliveries { get; }
+    DbSet<Sprint> Sprints { get; }
+    DbSet<IssueLink> IssueLinks { get; }
+    DbSet<ProjectBoardColumnConfig> BoardColumnConfigs { get; }
+    DbSet<SprintBurndownSnapshot> SprintBurndownSnapshots { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

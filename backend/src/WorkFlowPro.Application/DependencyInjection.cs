@@ -8,6 +8,7 @@ using WorkFlowPro.Application.Features.Git.Services;
 using WorkFlowPro.Application.Features.Notifications.Services;
 using WorkFlowPro.Application.Features.Projects.Services;
 using WorkFlowPro.Application.Features.Reports.Services;
+using WorkFlowPro.Application.Features.Sprints.Services;
 using WorkFlowPro.Application.Features.Tasks.Services;
 using WorkFlowPro.Application.Features.Tickets.Services;
 
@@ -28,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IReportAppService, ReportAppService>();
         services.AddScoped<IAdminAppService, AdminAppService>();
         services.AddScoped<IGitIntegrationAppService, GitIntegrationAppService>();
+        services.AddScoped<ISprintAppService, SprintAppService>();
 
         return services;
     }

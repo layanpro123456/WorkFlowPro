@@ -37,6 +37,12 @@ erDiagram
     tasks ||--o{ task_pull_request_links : "links"
     git_pull_requests ||--o{ task_pull_request_links : "references"
     project_git_repositories ||--o{ git_webhook_deliveries : "receives"
+    projects ||--o{ sprints : "plans"
+    sprints ||--o{ tasks : "schedules"
+    tasks ||--o{ tasks : "epic or parent"
+    tasks ||--o{ issue_links : "links"
+    projects ||--o{ project_board_column_configs : "configures columns"
+    sprints ||--o{ sprint_burndown_snapshots : "records burndown"
 
     AspNetUsers {
         uuid Id PK
@@ -312,4 +318,45 @@ erDiagram
         string PayloadHash
         string Status
         timestamptz ReceivedAtUtc
+    }
+
+    sprints {
+        uuid Id PK
+        uuid ProjectId FK
+        string Name
+        string Goal
+        string Status
+        timestamptz StartDateUtc
+        timestamptz EndDateUtc
+        timestamptz CompletedAtUtc
+        uuid CreatedById FK
+    }
+
+    issue_links {
+        uuid Id PK
+        uuid SourceTaskId FK
+        uuid TargetTaskId FK
+        string LinkType
+        uuid CreatedById FK
+        timestamptz CreatedAtUtc
+    }
+
+    project_board_column_configs {
+        uuid Id PK
+        uuid ProjectId FK
+        string Status
+        int WipLimit
+        boolean IsStrictWip
+        boolean IsVisible
+        int DisplayOrder
+    }
+
+    sprint_burndown_snapshots {
+        uuid Id PK
+        uuid SprintId FK
+        timestamptz SnapshotDateUtc
+        int TotalPoints
+        int RemainingPoints
+        int CompletedPoints
+        int RemainingTaskCount
     }

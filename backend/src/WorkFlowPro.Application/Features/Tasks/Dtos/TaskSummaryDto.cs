@@ -22,5 +22,18 @@ public record TaskSummaryDto(
     DateTime? UpdatedAtUtc,
     int TaskNumber = 0,
     string TaskKey = "",
-    TaskGitSummaryDto? GitSummary = null
+    TaskGitSummaryDto? GitSummary = null,
+    string IssueType = "Task",
+    int? StoryPoints = null,
+    Guid? EpicId = null,
+    string? EpicKey = null,
+    string? EpicTitle = null,
+    Guid? ParentTaskId = null,
+    string? ParentTaskKey = null,
+    Guid? SprintId = null,
+    string? SprintName = null,
+    int BoardRank = 0,
+    int SubtaskCount = 0,
+    int CompletedSubtaskCount = 0,
+    bool IsBlockedByOpenIssue = false
 );

@@ -19,7 +19,7 @@
   <img src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
   <img src="https://img.shields.io/badge/Git%20%26%20PR%20Sync-GitHub%20Webhooks-24292F?logo=github&logoColor=white" alt="GitHub PR Sync">
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker Ready">
-  <img src="https://img.shields.io/badge/Automated%20Tests-321%20Passed%20(100%25)-10B981?logo=checkmarx&logoColor=white" alt="321 Tests Passed">
+  <img src="https://img.shields.io/badge/Automated%20Tests-332%20Passed%20(100%25)-10B981?logo=checkmarx&logoColor=white" alt="332 Tests Passed">
   <img src="https://img.shields.io/badge/Security%20Audits-0%20Vulnerabilities-10B981?logo=securityscorecard&logoColor=white" alt="0 Vulnerabilities">
   <img src="https://img.shields.io/badge/Architecture-Clean%20Architecture-6366F1" alt="Clean Architecture">
   <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
@@ -71,13 +71,12 @@ Jiva is structured into 9 cohesive functional modules, engineered with strict do
 - **Hierarchical Project Roles**: Scoped memberships (`Owner`, `Manager`, `Member`) governing task assignment and backlog modification rights.
 - **Active Member Invariant**: Tasks can only be assigned to verified, active members of that specific project, preventing orphaned or unassigned workloads.
 
-### ⚡ 3. Interactive Kanban Board, Task Keys & State Machine
-- **Human-Friendly Task Keys**: Sequential per-project identifiers (e.g., `PRJ-ALPHA-1`, `PRJ-ALPHA-2`) assigned automatically at creation for branch naming and PR matching.
-- **Strict Domain State Machine**: Enforces a formal lifecycle transition matrix ([docs/TASK_TRANSITIONS.md](docs/TASK_TRANSITIONS.md)):
-  $$\text{Backlog} \longrightarrow \text{ToDo} \longrightarrow \text{InProgress} \longrightarrow (\text{InReview} \mid \text{Blocked} \mid \text{Done} \mid \text{Cancelled})$$
-- **Optimistic Concurrency Control**: Uses entity version tokens mapped to `HTTP 409 Conflict`, preventing accidental lost updates when multiple team members edit the same task concurrently.
-- **Interactive Dual Views**: Switch seamlessly between a Kanban Board (with `InReview` column, PR/CI badges, PR state filter, and one-click branch creation) and a searchable Table view.
-- **Threaded Discussion & History Timeline**: Rich discussion comments and an append-only timeline tracking every status change, including automated Git/PR transitions.
+### ⚡ 3. Drag-and-Drop Agile Engine, Sprints & Issue Hierarchy
+- **Interactive CDK Kanban Board**: Smooth `@angular/cdk` drag-and-drop cards across columns (`Backlog`, `ToDo`, `InProgress`, `InReview`, `Done`, `Blocked`) with server-verified transitions, optimistic concurrency (`409 Conflict`), and visual transition drop validation.
+- **Per-Project Column WIP Limits**: Configure soft or strict (`409` enforced) Work-In-Progress limits per Kanban column via `ProjectBoardColumnConfig`.
+- **Rich Issue Hierarchy & Links**: Supports `Epic`, `Story`, `Task`, `Bug`, and `Subtask` issue types, Story Points, Epic tagging, parent subtasks, and typed issue links (`Blocks`, `RelatesTo`, `Duplicates`) with circular blocking detection.
+- **Sprints, Backlog Planner & Charts**: Drag-and-drop Product Backlog and Sprint planner (`/projects/:id/backlog`), single active sprint guarantee, sprint start/complete rollover workflows, SVG Burndown chart, and historical Velocity chart.
+- **Human-Friendly Task Keys & State Machine**: Sequential per-project keys (`PRJ-ALPHA-1`), formal lifecycle transition matrix ([docs/TASK_TRANSITIONS.md](docs/TASK_TRANSITIONS.md)), threaded comments, and append-only status history.
 
 ### 🌿 4. Git, Branch & Pull Request Integration (GitHub-First)
 - **Provider-Agnostic Architecture**: Built behind `IGitProviderClient` with a full GitHub REST API v3 & Webhook implementation (`GitHubProviderClient`), ready for future GitLab/Bitbucket providers.
@@ -220,13 +219,13 @@ Jiva enforces a strict **100% test pass rate** across both backend and frontend 
 ================================================================================
 AUTOMATED TEST VERIFICATION REPORT (100% PASS RATE)
 ================================================================================
-  Backend Unit Tests (WorkFlowPro.UnitTests):            181 Passed  (0 Failed)
-  Backend Integration Tests (WorkFlowPro.Integration):    54 Passed  (0 Failed)
+  Backend Unit Tests (WorkFlowPro.UnitTests):            187 Passed  (0 Failed)
+  Backend Integration Tests (WorkFlowPro.Integration):    55 Passed  (0 Failed)
   ------------------------------------------------------------------------------
-  Total Backend Tests (.NET 9):                         235 Passed  (0 Failed)
-  Frontend Unit & Component Tests (Vitest):               86 Passed  (0 Failed)
+  Total Backend Tests (.NET 9):                         242 Passed  (0 Failed)
+  Frontend Unit & Component Tests (Vitest):               90 Passed  (0 Failed)
 ================================================================================
-  TOTAL SYSTEM AUTOMATED TESTS:                          321 Passed  (0 Failed)
+  TOTAL SYSTEM AUTOMATED TESTS:                          332 Passed  (0 Failed)
 ================================================================================
   Production Angular Build (ng build):                    0 Warnings, 0 Errors
 ================================================================================
@@ -257,7 +256,7 @@ npm run build
 | **Database** | PostgreSQL | 17-alpine | ACID-compliant relational storage with custom constraints |
 | **Architecture Pattern** | MediatR | 12.x | CQRS command/query segregation and pipeline behaviors |
 | **Validation** | FluentValidation | 11.x | Strongly-typed business validation pipeline |
-| **Frontend Framework** | Angular | 22 | Modern SPA with reactive Signals and standalone components |
+| **Frontend Framework** | Angular | 22 | Modern SPA with reactive Signals, standalone components, and `@angular/cdk` drag-and-drop |
 | **Frontend Testing** | Vitest | 5.x | Ultra-fast unit testing framework for Angular |
 | **Web Server** | Nginx | Alpine | Reverse proxy, static asset delivery, and security headers |
 | **Containerization** | Docker & Compose | Multi-Stage | Reproducible builds with unprivileged rootless runtime containers |
@@ -291,8 +290,8 @@ WorkFlowPro/
 │           ├── core/              # Authentication, guards, interceptors, API services
 │           └── features/          # Auth, Tasks, Tickets, Approvals, Dashboard, Admin
 ├── tests/
-│   ├── WorkFlowPro.UnitTests/     # Domain & Application unit tests (165 tests)
-│   └── WorkFlowPro.IntegrationTests/# API & database integration tests (53 tests)
+│   ├── WorkFlowPro.UnitTests/     # Domain & Application unit tests (187 tests)
+│   └── WorkFlowPro.IntegrationTests/# API & database integration tests (55 tests)
 ├── docs/                          # Architecture specs, ERD, runbooks, and diagrams
 ├── docker-compose.yml             # Orchestration for PostgreSQL, API, and Web
 ├── .env.example                   # Environment configuration template

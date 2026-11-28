@@ -33,6 +33,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/tasks/task-board.component').then(m => m.TaskBoardComponent)
       },
       {
+        path: 'projects/:id/backlog',
+        loadComponent: () => import('./features/sprints/sprint-backlog.component').then(m => m.SprintBacklogComponent)
+      },
+      {
         path: 'tasks',
         loadComponent: () => import('./features/tasks/task-board.component').then(m => m.TaskBoardComponent)
       },

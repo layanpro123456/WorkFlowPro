@@ -1,4 +1,5 @@
 import { TaskGitBranch, TaskGitSummary, TaskPullRequest } from '../git/git.models';
+import { IssueLink, IssueType } from '../sprints/sprint.models';
 
 export type TaskStatus = 'Backlog' | 'ToDo' | 'InProgress' | 'InReview' | 'Blocked' | 'Done' | 'Cancelled';
 export type TaskPriority = 'Low' | 'Normal' | 'High' | 'Urgent';
@@ -51,6 +52,19 @@ export interface TaskSummary {
   createdAtUtc: string;
   updatedAtUtc?: string | null;
   gitSummary?: TaskGitSummary | null;
+  issueType?: IssueType;
+  storyPoints?: number | null;
+  epicId?: string | null;
+  epicKey?: string | null;
+  epicTitle?: string | null;
+  parentTaskId?: string | null;
+  parentTaskKey?: string | null;
+  sprintId?: string | null;
+  sprintName?: string | null;
+  boardRank?: number;
+  subtaskCount?: number;
+  completedSubtaskCount?: number;
+  isBlockedByOpenIssue?: boolean;
 }
 
 export interface TaskComment {
@@ -97,6 +111,18 @@ export interface TaskDetail {
   history: TaskStatusHistory[];
   branches?: TaskGitBranch[];
   pullRequests?: TaskPullRequest[];
+  issueType?: IssueType;
+  storyPoints?: number | null;
+  epicId?: string | null;
+  epicKey?: string | null;
+  epicTitle?: string | null;
+  parentTaskId?: string | null;
+  parentTaskKey?: string | null;
+  sprintId?: string | null;
+  sprintName?: string | null;
+  boardRank?: number;
+  subtasks?: TaskSummary[];
+  links?: IssueLink[];
 }
 
 export interface CreateTaskRequest {
@@ -107,6 +133,11 @@ export interface CreateTaskRequest {
   dueAtUtc?: string | null;
   estimateMinutes?: number | null;
   status?: TaskStatus | null;
+  issueType?: IssueType;
+  storyPoints?: number | null;
+  epicId?: string | null;
+  parentTaskId?: string | null;
+  sprintId?: string | null;
 }
 
 export interface UpdateTaskRequest {
@@ -117,6 +148,11 @@ export interface UpdateTaskRequest {
   dueAtUtc?: string | null;
   estimateMinutes?: number | null;
   version: number;
+  issueType?: IssueType | null;
+  storyPoints?: number | null;
+  epicId?: string | null;
+  parentTaskId?: string | null;
+  sprintId?: string | null;
 }
 
 export interface ChangeTaskStatusRequest {
