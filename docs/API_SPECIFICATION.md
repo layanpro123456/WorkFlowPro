@@ -1,9 +1,9 @@
-# WorkFlowPro – API Specification
+# Jiva – API Specification
 
 **Base path:** `/api/v1`  
 **Format:** JSON  
 **Authentication:** Bearer access token unless stated otherwise  
-**Status:** Proposed contract; verify against implemented OpenAPI output.
+**Status:** Implemented contract (verify against `/scalar/v1` OpenAPI output in Development).
 
 ## 1. Conventions
 
@@ -65,9 +65,9 @@ List filters: `status`, `search`, `page`, `pageSize`.
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/projects/{projectId}/tasks` | List project tasks |
-| POST | `/projects/{projectId}/tasks` | Create task |
-| GET | `/tasks/{taskId}` | Task details |
+| GET | `/projects/{projectId}/tasks` | List project tasks (filters: `status`, `priority`, `assigneeId`, `search`, `prState`, `page`, `pageSize`) |
+| POST | `/projects/{projectId}/tasks` | Create task (auto-assigns sequential `taskNumber` & `taskKey`, e.g. `PRJ-ALPHA-1`) |
+| GET | `/tasks/{taskId}` | Task details (includes `taskKey`, linked `branches`, and `pullRequests`) |
 | PUT | `/tasks/{taskId}` | Update task fields |
 | PATCH | `/tasks/{taskId}/status` | Change status |
 | POST | `/tasks/{taskId}/comments` | Add comment |
@@ -150,7 +150,24 @@ Use bounded date ranges and pagination. CSV export can be a later feature.
 | PUT | `/admin/users/{id}/roles` | Replace approved roles |
 | GET | `/admin/audit-logs` | Filter audit events |
 
-## 10. HTTP status guidance
+## 10. Git Integration & Webhooks
+
+| Method | Route | Purpose |
+|---|---|---|
+| GET | `/projects/{projectId}/git/repositories` | List connected Git repositories for a project |
+| POST | `/projects/{projectId}/git/repositories` | Connect GitHub repository (Owner/Manager/Admin; returns one-time generated webhook secret) |
+| PUT | `/projects/{projectId}/git/repositories/{repositoryId}` | Update repository credentials or automation toggles |
+| DELETE | `/projects/{projectId}/git/repositories/{repositoryId}` | Disconnect repository |
+| POST | `/projects/{projectId}/git/repositories/{repositoryId}/test` | Test GitHub API PAT & repo access |
+| POST | `/projects/{projectId}/git/repositories/{repositoryId}/sync` | Manually sync PRs, CI checks, reviews & task links |
+| GET | `/projects/{projectId}/git/pull-requests` | List synced PRs for a project (optional `state` filter) |
+| GET | `/tasks/{taskId}/git` | Get linked branches & PRs for a task |
+| POST | `/tasks/{taskId}/git/branches` | Create a Git branch directly from a Kanban card or task |
+| POST | `/tasks/{taskId}/git/pull-requests/link` | Manually link a PR (`repositoryId`, `prNumber`) to a task |
+| DELETE | `/tasks/{taskId}/git/pull-requests/{pullRequestId}` | Unlink a PR from a task |
+| POST | `/webhooks/git/{provider}/{repositoryId}` | `[AllowAnonymous]` inbound webhook verified via `X-Hub-Signature-256` (HMAC-SHA256) & `X-GitHub-Delivery` idempotency (`WebhookPolicy` rate limited) |
+
+## 11. HTTP status guidance
 
 - 200: successful read/update with response
 - 201: created resource
@@ -163,7 +180,7 @@ Use bounded date ranges and pagination. CSV export can be a later feature.
 - 429: rate limit exceeded
 - 500: unexpected server error (safe generic response)
 
-## 11. API contract verification
+## 12. API contract verification
 
 During implementation:
 1. Generate OpenAPI from the running API.

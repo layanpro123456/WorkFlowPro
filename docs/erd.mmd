@@ -29,6 +29,14 @@ erDiagram
     AspNetUsers ||--o{ approval_decisions : "decided by"
     AspNetUsers ||--o{ notifications : "receives"
     AspNetUsers ||--o{ audit_logs : "actor"
+    projects ||--o{ project_git_repositories : "connects"
+    AspNetUsers ||--o{ project_git_repositories : "configures"
+    project_git_repositories ||--o{ task_git_branches : "hosts"
+    tasks ||--o{ task_git_branches : "links"
+    project_git_repositories ||--o{ git_pull_requests : "tracks"
+    tasks ||--o{ task_pull_request_links : "links"
+    git_pull_requests ||--o{ task_pull_request_links : "references"
+    project_git_repositories ||--o{ git_webhook_deliveries : "receives"
 
     AspNetUsers {
         uuid Id PK
@@ -89,6 +97,8 @@ erDiagram
     tasks {
         uuid Id PK
         uuid ProjectId FK
+        int TaskNumber
+        string TaskKey
         string Title
         string Description
         string Status
@@ -238,4 +248,68 @@ erDiagram
         timestamptz OccurredAtUtc
         string CorrelationId
         string Metadata
+    }
+
+    project_git_repositories {
+        uuid Id PK
+        uuid ProjectId FK
+        string Provider
+        string RepositoryOwner
+        string RepositoryName
+        string RepositoryFullName
+        string DefaultBranch
+        boolean IsDefault
+        boolean IsActive
+        boolean AutoLinkEnabled
+        boolean AutoTransitionEnabled
+        boolean UseInReviewColumn
+        timestamptz LastSyncedAtUtc
+        uuid CreatedById FK
+    }
+
+    task_git_branches {
+        uuid Id PK
+        uuid TaskId FK
+        uuid RepositoryId FK
+        string BranchName
+        string BaseBranch
+        string BranchUrl
+        uuid CreatedByUserId
+        timestamptz CreatedAtUtc
+    }
+
+    git_pull_requests {
+        uuid Id PK
+        uuid RepositoryId FK
+        bigint ExternalPrId
+        int PrNumber
+        string Title
+        string State
+        string SourceBranch
+        string TargetBranch
+        string AuthorLogin
+        string ReviewStatus
+        string CheckStatus
+        timestamptz OpenedAtUtc
+        timestamptz MergedAtUtc
+    }
+
+    task_pull_request_links {
+        uuid Id PK
+        uuid TaskId FK
+        uuid PullRequestId FK
+        string LinkSource
+        uuid LinkedByUserId
+        timestamptz LinkedAtUtc
+    }
+
+    git_webhook_deliveries {
+        uuid Id PK
+        uuid RepositoryId FK
+        string Provider
+        string DeliveryId
+        string EventType
+        string PayloadHash
+        string Status
+        timestamptz ReceivedAtUtc
     }

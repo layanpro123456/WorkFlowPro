@@ -1,6 +1,6 @@
-# WorkFlowPro — Complete Feature & Flow Demo Script
+# Jiva — Complete Feature & Flow Demo Script
 
-This guide provides **two complementary ways** to demo every feature, workflow, and security guardrail in **WorkFlowPro**:
+This guide provides **two complementary ways** to demo every feature, workflow, and security guardrail in **Jiva** *(codebase `WorkFlowPro`)*:
 
 1. **Part A — Live Presenter UI Walkthrough (~12–15 minutes)**: A scene-by-scene spoken + screen-click script covering all 8 modules and multi-role handoffs in the Angular web app.
 2. **Part B — Automated Runnable Demo Script (`scripts/demo_all_features.py`)**: A zero-dependency Python 3 script that executes every end-to-end flow and negative security test against the live API (supports `--pause` for live narration alongside a terminal).
@@ -91,6 +91,17 @@ npm start
      - Point out **`Available Transitions`** buttons (only valid next states are enabled per `docs/TASK_TRANSITIONS.md`; invalid jumps like `Backlog → Done` are blocked by the domain state machine with `HTTP 400`).
      - Point out **`Version`** badge (e.g., `Version 6`)—explain that every update passes `version` for **optimistic concurrency control** (`HTTP 409 Conflict` on stale edits).
      - Post a comment under **Discussion** and scroll the **Status History** timeline in the right sidebar.
+
+---
+
+### Scene 3b: Git, Branch Creation & Pull Request Sync (2 min)
+1. **Project Detail (`/projects/:id`) — Connect GitHub**:
+   - Under **Git Repositories & Pull Requests**, click **`+ Connect GitHub Repo`**, enter owner/repo, default branch, optional PAT, and toggle **Auto-link**, **Auto-transition**, and **InReview column**.
+   - Copy the generated **Webhook Secret** and **Webhook URL** (`/api/v1/webhooks/git/github/{repoId}`), or click **Test** / **Sync PRs** to pull open/merged PRs on demand.
+2. **Kanban Board (`/tasks`) — Create Branch & Track PRs**:
+   - Point out sequential card keys (`PRJ-ALPHA-2`, `WFP-Q4-1`), PR pills (`PR #42 Open ✓`), and the **`InReview`** column.
+   - Click **`🌿+`** on a card to create `feat/WFP-Q4-1-configure-sso` directly on GitHub—the card automatically transitions to `InProgress`.
+   - When a PR referencing `WFP-Q4-1` is opened (or synced via webhook), the card automatically moves to `InReview`, displays CI check & review badges, and transitions to `Done` upon merge.
 
 ---
 

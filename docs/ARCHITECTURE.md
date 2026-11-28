@@ -1,4 +1,4 @@
-# WorkFlowPro – Architecture
+# Jiva – Architecture
 
 ## 1. Architecture style
 
@@ -45,34 +45,28 @@ Must not contain:
 
 ### WorkFlowPro.Application
 Contains:
-- Use cases/application services
+- Use cases/application services (including `TaskAppService`, `GitIntegrationAppService`)
 - Request/response DTOs
-- Validation
+- Validation (`FluentValidation`)
 - Authorization abstractions/resource access checks
-- Repository or query abstractions only where they add value
-- Interfaces for clock, current user, file storage and notification services
+- Interfaces (`IGitProviderClient`, `IGitSecretProtector`, `IIdentityService`, `IAuditService`, `IApplicationDbContext`)
 
 Prefer explicit use-case services over introducing a generic repository/unit-of-work abstraction that merely duplicates EF Core.
 
 ### WorkFlowPro.Infrastructure
 Contains:
 - EF Core DbContext and entity configurations
-- PostgreSQL/Npgsql configuration
+- PostgreSQL/Npgsql and SQLite test configuration
 - Identity persistence
-- Implementations of application interfaces
+- GitHub REST & Webhook client (`GitHubProviderClient`) and DataProtection encryption (`GitSecretProtector`)
 - Migrations
-- Data seeding for development only
-- File storage adapter for local development if implemented
+- Data seeding for development/demo (`ApplicationDbContextInitialiser`)
 
 ### WorkFlowPro.Api
 Contains:
-- Controllers or minimal API endpoints (choose one style consistently; recommended: controllers for clear portfolio demonstration)
-- Authentication/authorization setup
-- Middleware and exception mapping
-- OpenAPI configuration
-- Dependency injection composition
-- Health checks
-- API versioning strategy if introduced
+- REST Controllers (`TasksController`, `GitController`, `WebhooksController`, etc.)
+- Authentication/authorization setup (`JwtBearer` + HMAC-SHA256 webhook verification)
+- Middleware, rate limiting (`AuthPolicy`, `WebhookPolicy`), and exception mapping
 
 ## 3. Frontend structure
 
@@ -80,10 +74,11 @@ Contains:
 src/app/
 ├── core/
 │   ├── auth/
+│   ├── git/
 │   ├── guards/
 │   ├── interceptors/
 │   ├── layout/
-│   └── services/
+│   └── ...
 ├── shared/
 │   ├── components/
 │   ├── models/

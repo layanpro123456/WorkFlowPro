@@ -1,4 +1,4 @@
-# WorkFlowPro – Deployment and Operations
+# Jiva – Deployment and Operations
 
 ## 1. Environments
 

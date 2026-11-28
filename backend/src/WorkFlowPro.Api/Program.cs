@@ -137,7 +137,7 @@ if (applyMigrations)
         app.MapOpenApi();
         app.MapScalarApiReference(options =>
         {
-            options.Title = "WorkFlowPro API Reference";
+            options.Title = "Jiva API Reference";
             options.Theme = ScalarTheme.Purple;
         });
     }

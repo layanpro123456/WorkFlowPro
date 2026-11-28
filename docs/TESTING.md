@@ -1,4 +1,4 @@
-# WorkFlowPro – Testing Strategy
+# Jiva – Testing Strategy
 
 ## 1. Test layers
 
@@ -50,7 +50,8 @@ Use `WebApplicationFactory` and a dedicated test PostgreSQL database/container:
 |---|---|
 | Authentication | valid login, invalid login, inactive account, refresh rotation, logout |
 | Projects | create, duplicate code, member access, non-member denial, archive |
-| Tasks | create, invalid assignee, invalid transition, stale version, comments |
+| Tasks | create, task key assignment, invalid assignee, invalid transition (`InReview` rules), stale version, comments |
+| Git & Webhooks | repo connection auth, encrypted secrets, branch creation, HMAC-SHA256 signature verification, DeliveryId idempotency, PR auto-link & auto-transition |
 | Tickets | requester visibility, agent assignment, internal-note privacy, status transitions |
 | Approvals | correct approver, wrong approver, double decision, rejection, all steps approved |
 | Notifications | own list, cannot access another user's notification |

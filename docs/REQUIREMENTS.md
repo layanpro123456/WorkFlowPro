@@ -1,4 +1,4 @@
-# WorkFlowPro – Software Requirements Specification
+# Jiva – Software Requirements Specification
 
 **Version:** 1.0  
 **Status:** Proposed requirements; implementation not yet verified.

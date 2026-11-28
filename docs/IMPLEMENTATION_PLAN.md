@@ -1,4 +1,4 @@
-# WorkFlowPro – Implementation Plan
+# Jiva – Implementation Plan
 
 ## Guiding rule
 

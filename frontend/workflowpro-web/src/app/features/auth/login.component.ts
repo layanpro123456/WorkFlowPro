@@ -13,8 +13,8 @@ import { AuthService } from '../../core/auth/auth.service';
       <div class="login-card">
         <div class="card-header">
           <div class="brand-icon">⚡</div>
-          <h2>Sign in to WorkFlowPro</h2>
-          <p class="subtitle">Enterprise Project, Task & Workflow Management</p>
+          <h2>Sign in to Jiva</h2>
+          <p class="subtitle">Projects, Git-Linked Kanban &amp; Workflow Operations</p>
         </div>
 
         @if (errorMessage()) {

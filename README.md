@@ -1,14 +1,14 @@
 <div align="center">
 
 <a href="https://github.com/layanpro123456/WorkFlowPro">
-  <img src="assets/logo.svg" alt="WorkFlowPro Banner" width="100%">
+  <img src="assets/logo.svg" alt="Jiva Banner" width="100%">
 </a>
 
 <br/><br/>
 
-### Modern, Enterprise-Grade Project Management, Service Desk & Sequential Approval Engine
+### Modern, Git-Native Project Management, Service Desk & Sequential Approval Engine
 
-*Unifying Kanban task orchestration, customer support with strict internal notes privacy, multi-step hierarchical approvals, and real-time operational telemetry.*
+*Unifying Kanban task orchestration with live Git branches & Pull Requests, customer support with strict internal notes privacy, multi-step hierarchical approvals, and real-time operational telemetry.*
 
 <p align="center">
   <a href="https://github.com/layanpro123456/WorkFlowPro/actions/workflows/ci.yml">
@@ -17,10 +17,11 @@
   <img src="https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white" alt=".NET 9">
   <img src="https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white" alt="Angular 22">
   <img src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
+  <img src="https://img.shields.io/badge/Git%20%26%20PR%20Sync-GitHub%20Webhooks-24292F?logo=github&logoColor=white" alt="GitHub PR Sync">
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker Ready">
-  <img src="https://img.shields.io/badge/Automated%20Tests-300%20Passed%20(100%25)-10B981?logo=checkmarx&logoColor=white" alt="300 Tests Passed">
+  <img src="https://img.shields.io/badge/Automated%20Tests-321%20Passed%20(100%25)-10B981?logo=checkmarx&logoColor=white" alt="321 Tests Passed">
   <img src="https://img.shields.io/badge/Security%20Audits-0%20Vulnerabilities-10B981?logo=securityscorecard&logoColor=white" alt="0 Vulnerabilities">
-  <img src="https://img.shields.io/badge/Architecture-Clean%20Architecture%20%2B%20CQRS-6366F1" alt="Clean Architecture">
+  <img src="https://img.shields.io/badge/Architecture-Clean%20Architecture-6366F1" alt="Clean Architecture">
   <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
 </p>
 
@@ -38,25 +39,25 @@
 </div>
 
 > [!TIP]
-> **Experience WorkFlowPro in 60 Seconds**: Run `docker compose up --build -d` to launch the complete stack with pre-seeded enterprise datasets and instant role logins for Administrator, Manager, Agent, and Employee roles.
+> **Experience Jiva in 60 Seconds**: Run `docker compose up --build -d` to launch the complete stack with pre-seeded enterprise datasets, linked Git branches/PRs, and instant role logins for Administrator, Manager, Agent, and Employee roles.
 
 ---
 
 ## 🌟 Overview
 
-**WorkFlowPro** is an open-source, full-stack enterprise collaboration platform designed for high-concurrency business operations. Built on **.NET 9 Clean Architecture**, **Angular 22**, and **PostgreSQL 17**, WorkFlowPro solves the common operational friction points found in modern enterprises by providing:
+**Jiva** *(codebase/solution `WorkFlowPro`)* is an open-source, full-stack enterprise collaboration platform designed for high-concurrency engineering and business operations. Built on **.NET 9 Clean Architecture**, **Angular 22**, and **PostgreSQL 17**, Jiva eliminates operational friction by providing:
 
-1. **Structured Project & Task Delivery** via an interactive Kanban board with domain-enforced state transitions and optimistic concurrency locking.
+1. **Git-Native Kanban & Task Delivery** with human-friendly task keys (`PRJ-ALPHA-2`), one-click branch creation from cards, live GitHub PR/CI/review badges, HMAC-SHA256 webhooks, and automated card transitions (`InProgress` → `InReview` → `Done`).
 2. **Enterprise Service Desk** featuring customer/agent collaboration queues with a strict, data-layer privacy boundary for internal staff notes.
 3. **Sequential Multi-Step Approval Engine** with submission-time approver snapshotting, terminal rejection workflows, and double-decision database constraints.
 4. **Real-Time Visibility & Reporting** through user-isolated in-app notifications, caller-authorized KPI dashboards, and RFC 4180 compliant CSV exports.
-5. **Zero-Trust Administrative Governance** with role-based access control (RBAC), multi-tenant resource concealment, sliding-window rate limiting, and immutable audit trails.
+5. **Zero-Trust Administrative Governance** with role-based access control (RBAC), multi-tenant resource concealment, Data Protection-encrypted Git tokens, sliding-window rate limiting, and immutable audit trails.
 
 ---
 
 ## ⚡ Key Functionalities & Capabilities
 
-WorkFlowPro is structured into 8 cohesive functional modules, engineered with strict domain invariants and robust security controls:
+Jiva is structured into 9 cohesive functional modules, engineered with strict domain invariants and robust security controls:
 
 ### 🚀 1. Identity, Authentication & Zero-Trust RBAC
 - **Multi-Tiered Enterprise Roles**: Pre-configured with 4 granular roles: `Administrator`, `Manager`, `SupportAgent`, and `Employee`.
@@ -70,14 +71,22 @@ WorkFlowPro is structured into 8 cohesive functional modules, engineered with st
 - **Hierarchical Project Roles**: Scoped memberships (`Owner`, `Manager`, `Member`) governing task assignment and backlog modification rights.
 - **Active Member Invariant**: Tasks can only be assigned to verified, active members of that specific project, preventing orphaned or unassigned workloads.
 
-### ⚡ 3. Interactive Kanban Board & Task State Machine
+### ⚡ 3. Interactive Kanban Board, Task Keys & State Machine
+- **Human-Friendly Task Keys**: Sequential per-project identifiers (e.g., `PRJ-ALPHA-1`, `PRJ-ALPHA-2`) assigned automatically at creation for branch naming and PR matching.
 - **Strict Domain State Machine**: Enforces a formal lifecycle transition matrix ([docs/TASK_TRANSITIONS.md](docs/TASK_TRANSITIONS.md)):
-  $$\text{Backlog} \longrightarrow \text{ToDo} \longrightarrow \text{InProgress} \longrightarrow (\text{Blocked} \mid \text{Done} \mid \text{Cancelled})$$
+  $$\text{Backlog} \longrightarrow \text{ToDo} \longrightarrow \text{InProgress} \longrightarrow (\text{InReview} \mid \text{Blocked} \mid \text{Done} \mid \text{Cancelled})$$
 - **Optimistic Concurrency Control**: Uses entity version tokens mapped to `HTTP 409 Conflict`, preventing accidental lost updates when multiple team members edit the same task concurrently.
-- **Interactive Dual Views**: Switch seamlessly between a high-efficiency Kanban Board (with drag/drop and quick-move actions) and a searchable, filterable Table view.
-- **Threaded Discussion & History Timeline**: Rich markdown-supported comments and an append-only timeline tracking every status change and assignment event.
+- **Interactive Dual Views**: Switch seamlessly between a Kanban Board (with `InReview` column, PR/CI badges, PR state filter, and one-click branch creation) and a searchable Table view.
+- **Threaded Discussion & History Timeline**: Rich discussion comments and an append-only timeline tracking every status change, including automated Git/PR transitions.
 
-### 🎫 4. Service Desk & Support Ticket System
+### 🌿 4. Git, Branch & Pull Request Integration (GitHub-First)
+- **Provider-Agnostic Architecture**: Built behind `IGitProviderClient` with a full GitHub REST API v3 & Webhook implementation (`GitHubProviderClient`), ready for future GitLab/Bitbucket providers.
+- **Per-Project Repository Bindings**: Connect repositories per project with encrypted PATs and webhook secrets (`IDataProtectionProvider` persisted via Docker volume), HTTPS SSRF guards, connection testing, and manual PR sync.
+- **Create Branches from Kanban Cards**: Launch a branch (`feat/PRJ-ALPHA-2-slug`) directly from a Kanban card or Task Detail view, automatically moving `Backlog`/`ToDo` cards to `InProgress`.
+- **Signed Webhooks & Idempotency**: Validates `X-Hub-Signature-256` with constant-time HMAC-SHA256 comparison (`CryptographicOperations.FixedTimeEquals`) and deduplicates `X-GitHub-Delivery` IDs.
+- **Auto-Linking & Auto-Transitions**: Automatically links branches and PRs mentioning a `TaskKey` in the branch, title, or body; advances cards to `InReview` on PR open, `Done` on PR merge, and dispatches in-app notifications for PR opens, merges, review change requests, and CI failures.
+
+### 🎫 5. Service Desk & Support Ticket System
 - **Human-Friendly Sequential IDs**: Custom sequential ticket numbers starting at `#1001` for effortless verbal reference and customer communication.
 - **Strict Internal Notes Privacy Filter**:
   - Support agents can collaborate privately on tickets via internal notes.
@@ -86,7 +95,7 @@ WorkFlowPro is structured into 8 cohesive functional modules, engineered with st
 - **Full Support Lifecycle**: Governs status transitions (`New` $\rightarrow$ `Assigned` $\rightarrow$ `InProgress` $\rightarrow$ `WaitingForRequester` $\rightarrow$ `Resolved` $\rightarrow$ `Closed`).
 - **Tabbed Queue Triage**: Dedicated tabs for `All Tickets` (for agents/managers) and `My Tickets` (filtered for the requesting user).
 
-### 🔄 5. Sequential Multi-Step Approval Engine
+### 🔄 6. Sequential Multi-Step Approval Engine
 - **Configurable Step Hierarchies**: Define ordered sequential approval workflows (e.g., *Project Lead Review* $\rightarrow$ *Finance Audit* $\rightarrow$ *Executive Sign-Off*).
 - **Submission-Time Approver Snapshotting**: Concrete approvers and step sequences are resolved and locked at the moment of submission ([docs/APPROVAL_WORKFLOWS.md](docs/APPROVAL_WORKFLOWS.md)), preventing mid-flight workflow corruption if definitions change later.
 - **Designated-Approver-Only Authorization**: Strict server-side verification ensures only the assigned approver for the active step can record a decision (`HTTP 403 Forbidden` for unauthorized attempts).
@@ -94,17 +103,17 @@ WorkFlowPro is structured into 8 cohesive functional modules, engineered with st
 - **Concurrency & Double-Vote Safeguard**: Database-level unique constraint on `(approval_request_step_id)` guarantees decisions cannot be recorded twice.
 - **Visual Progress Stepper**: Interactive stepper displaying current stage, decision status badges, timestamps, and approver review comments.
 
-### 🔔 6. Real-Time In-App Notifications & Event Bus
+### 🔔 7. Real-Time In-App Notifications & Event Bus
 - **Automated Activity Events**: Event-driven notifications dispatched automatically upon task assignments, discussion comments, ticket status updates, and approval requests.
 - **Strict User Isolation**: Queries and read receipts are bounded strictly to the authenticated caller; attempts to modify another user's notification return `HTTP 404 Not Found`.
 - **Dynamic Header Notification Center**: Unread count badge with a dropdown menu allowing one-click read confirmation and direct navigation to the referenced entity.
 
-### 📊 7. Executive Analytics Dashboard & RFC 4180 CSV Reports
+### 📊 8. Executive Analytics Dashboard & RFC 4180 CSV Reports
 - **Role-Tailored Operational KPIs**: Instant metric counts for Assigned Tasks, Overdue Tasks, Open Ticket Queues, Pending Approval Inboxes, and Managed Projects.
 - **Bounded Date-Range Telemetry**: Generate detailed task and ticket distribution reports filtered by custom date ranges.
 - **RFC 4180 Compliant CSV Export**: High-performance streaming CSV export engine with proper quote-wrapping, comma handling, and newline escaping for spreadsheet tools.
 
-### 🛡️ 8. Administration, Audit Log Explorer & System Hardening
+### 🛡️ 9. Administration, Audit Log Explorer & System Hardening
 - **User Provisioning & Role Editor**: Provision new team members, adjust global roles, and toggle user active states through an administrative console.
 - **Filterable Audit Log Explorer**: Append-only log recording administrative changes, project modifications, and privileged operations with caller IP, user agent, action category, and JSON state diffs.
 - **Sliding-Window Rate Limiting**: IP-partitioned sliding-window rate limiters protecting sensitive endpoints (e.g., authentication) returning `HTTP 429 Too Many Requests`.
@@ -115,7 +124,7 @@ WorkFlowPro is structured into 8 cohesive functional modules, engineered with st
 
 ## 🚀 One-Command Docker Quickstart
 
-The fastest way to run WorkFlowPro is using Docker Compose. The stack includes PostgreSQL 17, the .NET 9 API, and the Angular 22 SPA served via Nginx.
+The fastest way to run Jiva is using Docker Compose. The stack includes PostgreSQL 17, the .NET 9 API, and the Angular 22 SPA served via Nginx.
 
 ```bash
 # 1. Clone the repository
@@ -154,21 +163,25 @@ When running via Docker Compose (with `SeedDemoData=true`), the following test a
 
 ## 🏗️ System Architecture
 
-WorkFlowPro strictly adheres to **Clean Architecture** and **Domain-Driven Design (DDD)**. The core business rules and entities reside entirely in the inner layers and remain independent of frameworks, databases, and UI implementations.
+Jiva strictly adheres to **Clean Architecture** and **Domain-Driven Design (DDD)**. The core business rules and entities reside entirely in the inner layers and remain independent of frameworks, databases, and UI implementations.
 
 ```mermaid
 graph TD
     subgraph Frontend["Frontend Client (Port 80)"]
-        UI["Angular 22 SPA\n(Signals, Standalone Components, Reactive Forms)"]
+        UI["Angular 22 SPA\n(Signals, Standalone Components, Git/Kanban UI)"]
         NginxProxy["Nginx Alpine Web Server\n(Gzip, Security Headers, SPA try_files)"]
         UI <--> NginxProxy
     end
 
+    subgraph ExternalGit["External Git Hosts"]
+        GitHub["GitHub REST API v3 & Webhooks\n(HMAC-SHA256 Signed Events)"]
+    end
+
     subgraph BackendAPI["Backend Web API (Port 8080)"]
-        ApiLayer["Presentation Layer (WorkFlowPro.Api)\n(Fast Minimal Endpoints, Swagger, Rate Limiter, Auth Filters)"]
-        AppLayer["Application Layer (WorkFlowPro.Application)\n(MediatR CQRS, FluentValidation, Business Behaviors)"]
-        DomainLayer["Domain Layer (WorkFlowPro.Domain)\n(Entities, State Machines, Domain Events, Invariants)"]
-        InfraLayer["Infrastructure Layer (WorkFlowPro.Infrastructure)\n(EF Core Npgsql, ASP.NET Identity, Interceptors, JWT Token Engine)"]
+        ApiLayer["Presentation Layer (WorkFlowPro.Api)\n(Controllers, WebhooksController, Rate Limiter, Auth Filters)"]
+        AppLayer["Application Layer (WorkFlowPro.Application)\n(Application Services, FluentValidation, IGitProviderClient)"]
+        DomainLayer["Domain Layer (WorkFlowPro.Domain)\n(Entities, Task State Machine, Git Models, Invariants)"]
+        InfraLayer["Infrastructure Layer (WorkFlowPro.Infrastructure)\n(EF Core Npgsql/SQLite, GitHubProviderClient, DataProtection)"]
 
         ApiLayer --> AppLayer
         AppLayer --> DomainLayer
@@ -183,39 +196,39 @@ graph TD
     end
 
     NginxProxy -->|/api/* Reverse Proxy| ApiLayer
+    GitHub -->|POST /api/v1/webhooks/git/*| ApiLayer
+    InfraLayer <-->|HTTPS + Encrypted PAT| GitHub
 ```
 
 ### Architectural Layer Responsibilities
 
 | Layer | Project | Key Responsibilities |
 |---|---|---|
-| **Domain** | `WorkFlowPro.Domain` | Enterprise business entities, domain exceptions, state transition logic, enums, value objects. Zero external dependencies. |
-| **Application** | `WorkFlowPro.Application` | CQRS commands and queries (MediatR), FluentValidation pipeline behaviors, DTO mappings, service interfaces. |
-| **Infrastructure** | `WorkFlowPro.Infrastructure` | EF Core `ApplicationDbContext`, Npgsql PostgreSQL mapping, ASP.NET Core Identity, `AuditSaveChangesInterceptor`, JWT generator. |
-| **Presentation** | `WorkFlowPro.Api` | Minimal API endpoints, authentication/authorization middleware, rate limiting, global exception handling, OpenAPI definitions. |
-| **Web Client** | `workflowpro-web` | Angular 22 Single-Page Application with Signals, standalone components, Vitest test suite, Nginx container. |
+| **Domain** | `WorkFlowPro.Domain` | Enterprise business entities (including `ProjectGitRepository`, `TaskGitBranch`, `GitPullRequest`, `TaskPullRequestLink`, `GitWebhookDelivery`), domain exceptions, state transition logic, constants. Zero external dependencies. |
+| **Application** | `WorkFlowPro.Application` | Use-case services (`TaskAppService`, `GitIntegrationAppService`, etc.), FluentValidation validators, DTO mappings, `IGitProviderClient` & `IGitSecretProtector` interfaces. |
+| **Infrastructure** | `WorkFlowPro.Infrastructure` | EF Core `ApplicationDbContext`, Npgsql/SQLite mapping, ASP.NET Core Identity, `GitHubProviderClient`, `GitSecretProtector` (`IDataProtectionProvider`), JWT generator. |
+| **Presentation** | `WorkFlowPro.Api` | REST API controllers (including `GitController` and `WebhooksController`), authentication/authorization, rate limiting (`AuthPolicy`, `WebhookPolicy`), global exception handling, OpenAPI/Scalar docs. |
+| **Web Client** | `workflowpro-web` | Angular 22 Single-Page Application with Signals, standalone components, Git/Kanban UI, Vitest test suite, Nginx container. |
 
 ---
 
 ## 🧪 Automated Testing & Quality Gates
 
-WorkFlowPro enforces a strict **100% test pass rate** across both backend and frontend test suites prior to deployment:
+Jiva enforces a strict **100% test pass rate** across both backend and frontend test suites:
 
 ```text
 ================================================================================
 AUTOMATED TEST VERIFICATION REPORT (100% PASS RATE)
 ================================================================================
-  Backend Unit Tests (WorkFlowPro.UnitTests):            165 Passed  (0 Failed)
-  Backend Integration Tests (WorkFlowPro.Integration):    53 Passed  (0 Failed)
+  Backend Unit Tests (WorkFlowPro.UnitTests):            181 Passed  (0 Failed)
+  Backend Integration Tests (WorkFlowPro.Integration):    54 Passed  (0 Failed)
   ------------------------------------------------------------------------------
-  Total Backend Tests (.NET 9):                         218 Passed  (0 Failed)
-  Frontend Unit & Component Tests (Vitest):               82 Passed  (0 Failed)
+  Total Backend Tests (.NET 9):                         235 Passed  (0 Failed)
+  Frontend Unit & Component Tests (Vitest):               86 Passed  (0 Failed)
 ================================================================================
-  TOTAL SYSTEM AUTOMATED TESTS:                          300 Passed  (0 Failed)
+  TOTAL SYSTEM AUTOMATED TESTS:                          321 Passed  (0 Failed)
 ================================================================================
-  Vulnerability Audit (.NET - dotnet list package):        0 Vulnerabilities Found
-  Vulnerability Audit (Frontend - npm audit):              0 Vulnerabilities Found
-  Production Angular Build (ng build --configuration=prod): 0 Warnings, 0 Errors
+  Production Angular Build (ng build):                    0 Warnings, 0 Errors
 ================================================================================
 ```
 
@@ -314,4 +327,4 @@ WorkFlowPro/
 
 ## 📄 License
 
-WorkFlowPro is open-source software provided under the [MIT License](https://opensource.org/licenses/MIT).
+Jiva (WorkFlowPro) is open-source software provided under the [MIT License](https://opensource.org/licenses/MIT).

@@ -1,4 +1,4 @@
-# WorkFlowPro – Security Requirements
+# Jiva – Security Requirements
 
 ## Authentication
 - Use ASP.NET Core Identity password hashing; never implement custom password hashing.

@@ -1,6 +1,6 @@
-# WorkFlowPro – Security & Hardening Verification Checklist
+# Jiva – Security & Hardening Verification Checklist
 
-This document details the security posture, verification evidence, automated test coverage, and documented operational limitations for WorkFlowPro following Phase 7 implementation.
+This document details the security posture, verification evidence, automated test coverage, and documented operational limitations for Jiva following Phase 7 & Git integration implementation.
 
 ---
 

@@ -14,8 +14,8 @@ import { InAppNotification } from '../notifications/notification.models';
       <header class="app-header">
         <div class="header-brand">
           <span class="brand-logo">⚡</span>
-          <span class="brand-name">WorkFlowPro</span>
-          <span class="brand-env">v1.0</span>
+          <span class="brand-name">Jiva</span>
+          <span class="brand-env">v1.1</span>
         </div>
 
         <nav class="header-nav">

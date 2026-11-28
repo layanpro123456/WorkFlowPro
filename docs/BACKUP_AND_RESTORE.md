@@ -1,6 +1,6 @@
-# WorkFlowPro – Database Backup & Recovery Runbook
+# Jiva – Database Backup & Recovery Runbook
 
-This document defines the operational procedures for backing up and restoring the PostgreSQL 17 database underpinning WorkFlowPro, whether running via Docker Compose or in a managed containerized/cloud environment.
+This document defines the operational procedures for backing up and restoring the PostgreSQL 17 database underpinning Jiva, whether running via Docker Compose or in a managed containerized/cloud environment.
 
 ---
 

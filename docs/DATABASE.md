@@ -1,4 +1,4 @@
-# WorkFlowPro – PostgreSQL Database Design
+# Jiva – PostgreSQL Database Design
 
 ## 1. Conventions
 
@@ -18,11 +18,15 @@ AspNetUsers (Identity)
    | 1
    |----< ProjectMembers >---- 1 Projects
    |                              |
-   |                              |----< Tasks
-   |                              |       |----< TaskComments
-   |                              |       |----< TaskStatusHistory
+   |                              |----< ProjectGitRepositories
+   |                              |          |----< GitPullRequests
+   |                              |          |----< GitWebhookDeliveries
    |                              |
-   |                              |----< ProjectActivity (optional)
+   |                              |----< Tasks
+   |                                     |----< TaskComments
+   |                                     |----< TaskStatusHistory
+   |                                     |----< TaskGitBranches
+   |                                     |----< TaskPullRequestLinks >---- GitPullRequests
 
 AspNetUsers
    |----< SupportTickets (requester)
@@ -74,6 +78,8 @@ Indexes: user_id, project_id/project_role.
 ### Tasks
 - id UUID PK
 - project_id UUID FK Projects
+- task_number integer not null default 0
+- task_key varchar(50) not null default ''
 - title varchar(200)
 - description text nullable
 - status varchar(20)
@@ -85,8 +91,62 @@ Indexes: user_id, project_id/project_role.
 - version integer not null default 1
 - created_at, updated_at timestamptz
 
-Indexes: project_id/status, assignee_id/status, due_at, created_at.
+Indexes: unique(project_id, task_number) where task_number > 0, task_key, project_id/status, assignee_id/status, due_at, created_at.
 Constraints: estimate_minutes >= 0; valid status/priority via application and optionally DB check constraints.
+
+### ProjectGitRepositories (`project_git_repositories`)
+- id UUID PK
+- project_id UUID FK Projects (cascade)
+- provider varchar(30) (e.g., `GitHub`)
+- repository_owner varchar(100), repository_name varchar(100), repository_full_name varchar(210)
+- api_base_url varchar(300), web_base_url varchar(300), default_branch varchar(100)
+- encrypted_access_token text nullable, encrypted_webhook_secret text nullable (ASP.NET DataProtection)
+- is_default boolean, is_active boolean, auto_link_enabled boolean, auto_transition_enabled boolean, use_in_review_column boolean
+- last_synced_at_utc timestamptz nullable, last_sync_error varchar(1000) nullable
+- created_by_id UUID FK AspNetUsers (restrict)
+
+Indexes: unique(project_id, provider, repository_full_name), project_id.
+
+### TaskGitBranches (`task_git_branches`)
+- id UUID PK
+- task_id UUID FK Tasks (cascade)
+- repository_id UUID FK ProjectGitRepositories (cascade)
+- branch_name varchar(200), base_branch varchar(100), branch_url varchar(500)
+- created_by_user_id UUID nullable
+- created_at_utc timestamptz
+
+Indexes: unique(repository_id, branch_name), task_id.
+
+### GitPullRequests (`git_pull_requests`)
+- id UUID PK
+- repository_id UUID FK ProjectGitRepositories (cascade)
+- external_pr_id bigint, pr_number integer
+- title varchar(300), body text nullable, state varchar(20) (`Open`, `Draft`, `Merged`, `Closed`)
+- source_branch varchar(200), target_branch varchar(200)
+- author_login varchar(100), author_avatar_url varchar(500) nullable, html_url varchar(500)
+- review_status varchar(30), check_status varchar(30)
+- commits_count int, additions int, deletions int
+- opened_at_utc timestamptz, merged_at_utc timestamptz nullable, closed_at_utc timestamptz nullable, last_synced_at_utc timestamptz
+
+Indexes: unique(repository_id, pr_number), (repository_id, source_branch).
+
+### TaskPullRequestLinks (`task_pull_request_links`)
+- id UUID PK
+- task_id UUID FK Tasks (cascade)
+- pull_request_id UUID FK GitPullRequests (cascade)
+- link_source varchar(30) (`AutoBranch`, `AutoTitle`, `AutoBody`, `Manual`)
+- linked_by_user_id UUID nullable, linked_at_utc timestamptz
+
+Indexes: unique(task_id, pull_request_id), pull_request_id.
+
+### GitWebhookDeliveries (`git_webhook_deliveries`)
+- id UUID PK
+- repository_id UUID FK ProjectGitRepositories nullable (set null)
+- provider varchar(30), delivery_id varchar(150), event_type varchar(50), payload_hash varchar(64)
+- status varchar(20) (`Processed`, `Ignored`, `Failed`), error_message varchar(1000) nullable
+- received_at_utc timestamptz, processed_at_utc timestamptz nullable
+
+Indexes: unique(provider, delivery_id), received_at_utc.
 
 ### TaskComments
 - id UUID PK
